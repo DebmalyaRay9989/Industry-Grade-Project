@@ -1,0 +1,937 @@
+Total sales in a day/week/quarter (both in terms of sales revenue and units sold)
+• Top 5 most selling item categories in a day (both in terms of amount and quantity)
+• Top 5 most profitable items in a day/week/quarter
+• Top 5 most profitable stores in a day/week/month/quarter
+• Total profit or loss in U.S. dollars every day in percentage
+
+
+*********************************************************************************************************************************************
+
+Sales transaction data does not have sales price information. It just has itemID, store_id, date and
+units sold
+• To fetch the sales price, we need to join it with the price change events table
+
+• One price change creates two ranges. scandate + scantime in a sales transaction can belong to any
+of these ranges to get the sales price
+
+• In the below example, the sales price for the sales transaction as per price change event will be
+16.17
+
+********************************************************************************************************************************************
+
+Forecasting Trends and Demand
+==============================
+
+[edureka_918210@ip-20-0-41-62 ~]$ hadoop fs -ls /bigdatapgp/common_folder/project_retailcart
+Found 4 items
+drwxr-xr-x   - evaluationuser01 supergroup          0 2020-07-26 16:12 /bigdatapgp/common_folder/project_retailcart/batchdata
+drwxr-xr-x   - evaluationuser01 supergroup          0 2020-07-26 16:23 /bigdatapgp/common_folder/project_retailcart/connector_jars
+drwxr-xr-x   - evaluationuser01 supergroup          0 2020-07-26 16:19 /bigdatapgp/common_folder/project_retailcart/history_data
+drwxr-xr-x   - evaluationuser01 supergroup          0 2020-07-27 19:14 /bigdatapgp/common_folder/project_retailcart/realtimedata
+[edureka_918210@ip-20-0-41-62 ~]$ 
+
+###########################################################################################################################################
+[edureka_918210@ip-20-0-41-62 project_retailcart]$ hadoop fs -ls /bigdatapgp/common_folder/project_retailcart/batchdata
+Found 5 items
+-rw-r--r--   3 evaluationuser01 supergroup    1822863 2020-07-26 16:12 /bigdatapgp/common_folder/project_retailcart/batchdata/retailcart_calendar_details.txt
+-rw-r--r--   3 evaluationuser01 supergroup       1356 2020-07-26 16:12 /bigdatapgp/common_folder/project_retailcart/batchdata/retailcart_currency_details.txt
+-rw-r--r--   3 evaluationuser01 supergroup     271441 2020-07-26 16:12 /bigdatapgp/common_folder/project_retailcart/batchdata/retailcart_department_details.txt
+-rw-r--r--   3 evaluationuser01 supergroup  107275790 2020-07-26 16:12 /bigdatapgp/common_folder/project_retailcart/batchdata/retailcart_item_details.txt
+-rw-r--r--   3 evaluationuser01 supergroup     831617 2020-07-26 16:12 /bigdatapgp/common_folder/project_retailcart/batchdata/retailcart_store_details.txt
+[edureka_918210@ip-20-0-41-62 project_retailcart]$ 
+###########################################################################################################################################
+[edureka_918210@ip-20-0-41-62 project_retailcart]$ hadoop fs -ls /bigdatapgp/common_folder/project_retailcart/connector_jars
+Found 1 items
+-rw-r--r--   3 evaluationuser01 supergroup    1006959 2020-07-26 16:23 /bigdatapgp/common_folder/project_retailcart/connector_jars/mysql-connector-java-5.1.48-bin.
+jar
+[edureka_918210@ip-20-0-41-62 project_retailcart]$
+###########################################################################################################################################
+[edureka_918210@ip-20-0-41-62 project_retailcart]$ hadoop fs  -ls /bigdatapgp/common_folder/project_retailcart/history_data
+Found 2 items
+drwxr-xr-x   - evaluationuser01 supergroup          0 2020-07-26 16:18 /bigdatapgp/common_folder/project_retailcart/history_data/store_item_price_change
+drwxr-xr-x   - evaluationuser01 supergroup          0 2020-07-26 16:20 /bigdatapgp/common_folder/project_retailcart/history_data/store_item_sales_data
+[edureka_918210@ip-20-0-41-62 project_retailcart]$ 
+###########################################################################################################################################
+[edureka_918210@ip-20-0-41-62 project_retailcart]$ hadoop fs -ls /bigdatapgp/common_folder/project_retailcart/realtimedata
+Found 2 items
+-rw-r--r--   3 evaluationuser01 supergroup      41546 2020-07-27 09:56 /bigdatapgp/common_folder/project_retailcart/realtimedata/price_change_event.txt
+-rw-r--r--   3 evaluationuser01 supergroup       5029 2020-07-27 16:42 /bigdatapgp/common_folder/project_retailcart/realtimedata/real_time_simulator.py
+[edureka_918210@ip-20-0-41-62 project_retailcart]$ 
+###########################################################################################################################################
+.option("delimter", "\t")
+
+/bigdatapgp/common_folder/project_retailcart/batchdata/retailcart_calendar_details.txt
+
+"calendar_date","date_desc","week_day_nbr","week_number","week_name","year_week_number","month_number","month_name","quarter_number","quarter_name","half_year_number","half_year_name","geo_region_cd"
+
+###########################################################################################################################################
+[edureka_918210@ip-20-0-41-62 batchdata]$ hadoop fs -ls /user/edureka_918210/project_retailcart/batchdata
+Found 1 items
+-rw-r--r--   3 edureka_918210 hadoop    1822689 2021-01-10 15:56 /user/edureka_918210/project_retailcart/batchdata/retailcart_calendar_details.txt
+[edureka_918210@ip-20-0-41-62 batchdata]$ 
+
+2011-02-20      Sunday, February 20, 2011       2       4       Week 04 201104  1       February        1       Q1      1       1st Half        US
+
+###########################################################################################################################################
+
+import org.apache.spark.ml.classification.LogisticRegression
+import org.apache.spark.ml.evaluation.BinaryClassificationEvaluator
+import org.apache.spark.ml.feature.{StringIndexer, VectorAssembler}
+import org.apache.spark.ml.linalg.DenseVector
+import org.apache.spark.mllib.evaluation.BinaryClassificationMetrics
+import org.apache.spark.sql.SparkSession
+import org.apache.log4j.Logger
+import org.apache.log4j.Level
+import org.apache.spark.ml.feature.{HashingTF, IDF, Tokenizer}
+import org.apache.spark.ml.feature.QuantileDiscretizer
+import org.apache.spark.sql.types._
+import org.apache.spark.ml.classification.LogisticRegression
+import org.apache.spark.ml.evaluation.BinaryClassificationEvaluator
+import org.apache.spark.ml.feature.{StringIndexer, VectorAssembler}
+import org.apache.spark.ml.feature.{HashingTF, IDF, Tokenizer} 
+import org.apache.spark.ml.linalg.DenseVector
+import org.apache.spark.mllib.evaluation.BinaryClassificationMetrics
+import org.apache.spark.sql.SparkSession
+import org.apache.log4j.Logger
+import org.apache.log4j.Level
+import org.apache.spark.ml.feature.{HashingTF, IDF, Tokenizer}
+import org.apache.spark.ml.feature.QuantileDiscretizer
+import org.apache.spark.sql.types._
+import org.apache.spark.ml.feature.MinMaxScaler 
+import org.apache.spark.ml.linalg.Vectors 
+import org.apache.spark.ml.classification.RandomForestClassifier
+import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator
+import org.apache.spark.ml.feature.StringIndexer
+import org.apache.spark.ml.feature.VectorAssembler
+import org.apache.spark.ml.classification.RandomForestClassifier
+import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator
+import org.apache.spark.ml.feature.StringIndexer
+import org.apache.spark.ml.feature.VectorAssembler
+import org.apache.spark.sql.functions._ 
+import org.apache.spark.ml.feature.{OneHotEncoder, StringIndexer}
+import org.apache.spark.ml.Pipeline
+import org.apache.spark.ml.classification.{RandomForestClassificationModel, RandomForestClassifier}
+import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator
+import org.apache.spark.ml.feature.{IndexToString, StringIndexer, VectorIndexer}
+
+import org.apache.spark.ml.evaluation.RegressionEvaluator
+import org.apache.spark.ml.regression.LinearRegression
+import org.apache.spark.ml.tuning.{ParamGridBuilder,TrainValidationSplit}
+import org.apache.log4j._
+import org.apache.spark.ml.feature.VectorAssembler
+import org.apache.spark.mllib.linalg.Vectors
+
+import org.apache.spark.ml.Pipeline
+import org.apache.spark.ml.classification.LogisticRegression
+import org.apache.spark.ml.evaluation.BinaryClassificationEvaluator
+import org.apache.spark.ml.feature.{HashingTF, Tokenizer}
+import org.apache.spark.ml.linalg.Vector
+import org.apache.spark.ml.tuning.{CrossValidator, ParamGridBuilder}
+import org.apache.spark.sql.Row
+// $example off$
+import org.apache.spark.sql.SparkSession
+
+import org.apache.spark.sql.{Row, SparkSession}
+import org.apache.spark.sql.types._
+import org.apache.spark.sql.functions._
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.types.{StructType, StructField, StringType};
+
+retailcart_calendar_details
+==============================
+
+"calendar_date date_desc week_day_nbr week_number week_name year_week_number month_number month_name quarter_number quarter_name half_year_number half_year_name geo_region_cd"
+spark.read.textFile("/user/edureka_918210/project_retailcart/batchdata/retailcart_calendar_details.txt").createOrReplaceTempView("retailcart_calendar_details");
+
+2011-02-20      Sunday, February 20, 2011       2       4       Week 04 201104  1       February        1       Q1      1       1st Half        US
+
+val retailcart_calendar = 
+spark.sql(""" Select 
+split(value,'\t')[0] as calendar_date,
+split(value,'\t')[1] as date_desc,
+split(value,'\t')[2] as week_day_nbr,
+split(value,'\t')[3] as week_number,
+split(value,'\t')[4] as week_name,
+split(value,'\t')[5] as year_week_number,
+split(value,'\t')[6] as month_number,
+split(value,'\t')[7] as month_name,
+split(value,'\t')[8] as quarter_number,
+split(value,'\t')[9] as quarter_name,
+split(value,'\t')[10] as half_year_number,
+split(value,'\t')[11] as half_year_name,
+split(value,'\t')[12] as geo_region_cd
+from retailcart_calendar_details """)
+
+
+val retailcart_calendar2 = retailcart_calendar.selectExpr("calendar_date", "date_desc", "cast(week_day_nbr as integer) week_day_nbr", "week_number", "week_name", "cast(year_week_number as integer) year_week_number","month_number","month_name","quarter_number","quarter_name","half_year_number","half_year_name","geo_region_cd")
+
+retailcart_department_details
+==============================
+
+department_number   department_category_number      department_sub_catg_number      department_description  department_category_description   department_sub_catg_desc      geo_region_cd
+
+spark.read.textFile("/user/edureka_918210/project_retailcart/batchdata/retailcart_department_details.txt").createOrReplaceTempView("retailcart_department_details");
+
+
+val retailcart_department = 
+spark.sql(""" Select 
+split(value,'\t')[0] as department_number,
+split(value,'\t')[1] as department_category_number,
+split(value,'\t')[2] as department_sub_catg_number,
+split(value,'\t')[3] as department_description,
+split(value,'\t')[4] as department_category_description,
+split(value,'\t')[5] as department_sub_catg_desc,
+split(value,'\t')[6] as geo_region_cd
+from retailcart_department_details """)
+
+val retailcart_department2 = retailcart_department.selectExpr("cast(department_number as integer) department_number", "cast(department_category_number as integer) department_category_number", "cast(department_sub_catg_number as integer) department_sub_catg_number", "department_description", "department_category_description", "department_sub_catg_desc","geo_region_cd")
+
+
+retailcart_item_details
+=========================
+
+item_id geo_region_cd   item_description        unique_product_cd       unique_product_cd_desc  department_number       department_category_number      department_sub_catg_number      vendor_name     vendor_number   item_status_cd  item_status_desc        unit_cost
+
+spark.read.textFile("/user/edureka_918210/project_retailcart/batchdata/retailcart_item_details.txt").createOrReplaceTempView("retailcart_item_details");
+
+val retailcart_item = 
+spark.sql(""" Select 
+split(value,'\t')[0] as item_id,
+split(value,'\t')[1] as geo_region_cd,
+split(value,'\t')[2] as item_description,
+split(value,'\t')[3] as unique_product_cd,
+split(value,'\t')[4] as unique_product_cd_desc,
+split(value,'\t')[5] as department_number,
+split(value,'\t')[6] as department_category_number,
+split(value,'\t')[7] as department_sub_catg_number,
+split(value,'\t')[8] as vendor_name,
+split(value,'\t')[9] as vendor_number,
+split(value,'\t')[10] as item_status_cd,
+split(value,'\t')[11] as item_status_desc,
+split(value,'\t')[12] as unit_cost
+from retailcart_item_details """)
+
+182396492       US      PR SV SH COC    7940045968      SUAVE SHAM      dept-num:2      dept-catg-num:561       dept-sub-catg-num:1203  PUERTO RICO SUPPLIES GROUP 
+INC     77641   A       ACTIVE  41.68
+74277172        US      REV CS POWDER-880       30997630008     REV POWDER      dept-num:46     dept-catg-num:7112      dept-sub-catg-num:16006 REVLON INC      430
+306     A       ACTIVE  NULL
+
+val retailcart_item2 = retailcart_item.selectExpr("cast(item_id as integer) item_id", "geo_region_cd", "item_description", "unique_product_cd", "unique_product_cd_desc", "department_number","department_category_number","department_sub_catg_number","vendor_name","vendor_number","item_status_cd","item_status_desc","cast(unit_cost as double) unit_cost")
+
+
+retailcart_store_details
+=========================
+store_id        geo_region_cd   store_name      sub_division_name       sub_division_number     region_number   region_name     market_number   market_name     city_name       open_date       open_status_desc        postal_cd       state_prov_cd
+
+spark.read.textFile("/user/edureka_918210/project_retailcart/batchdata/retailcart_store_details.txt").createOrReplaceTempView("retailcart_store_details");
+
+val retailcart_store = 
+spark.sql(""" Select 
+split(value,'\t')[0] as store_id,
+split(value,'\t')[1] as geo_region_cd,
+split(value,'\t')[2] as store_name,
+split(value,'\t')[3] as sub_division_name,
+split(value,'\t')[4] as sub_division_number,
+split(value,'\t')[5] as region_number,
+split(value,'\t')[6] as region_name,
+split(value,'\t')[7] as market_number,
+split(value,'\t')[8] as market_name,
+split(value,'\t')[9] as city_name,
+split(value,'\t')[10] as open_date,
+split(value,'\t')[11] as open_status_desc,
+split(value,'\t')[12] as postal_cd,
+split(value,'\t')[13] as state_prov_cd
+from retailcart_store_details """)
+
+val retailcart_store2 = retailcart_store.selectExpr("cast(store_id as integer) store_id", "geo_region_cd", "store_name", "sub_division_name", "sub_division_number", "region_number","region_name","market_number","market_name","city_name","open_date","open_status_desc","postal_cd","state_prov_cd")
+
+
+retailcart_currency_details
+==============================
+currency_id     currency_code   currency_name   usd_exchange_rate
+
+spark.read.textFile("/user/edureka_918210/project_retailcart/batchdata/retailcart_currency_details.txt").createOrReplaceTempView("retailcart_currency_details");
+
+val retailcart_currency = 
+spark.sql(""" Select 
+split(value,'\t')[0] as currency_id,
+split(value,'\t')[1] as currency_code,
+split(value,'\t')[2] as currency_name,
+split(value,'\t')[3] as usd_exchange_rate
+from retailcart_currency_details """)
+
+val retailcart_currency2 = retailcart_currency.selectExpr("currency_id", "currency_code", "currency_name", "cast(usd_exchange_rate as double) usd_exchange_rate")
+
+
+
+TO SAVE THE SPARK DATAFRAME INTO MYSQL : the mysql connector jar file is downloaded and connected.
+=====================================================================================================
+
+spark2-shell --jars /mnt/home/edureka_918210/project_retailcart/connector_jars/mysql-connector-java-5.1.48-bin.jar
+
+retailcart_calendar2.write.format("jdbc").option("url","jdbc:mysql://dbserver.edu.cloudlab.com/labuser_database").option("dbtable","retailcart_calendar2").option("user","edu_labuser").option("password","edureka").option("driver","com.mysql.jdbc.Driver").mode("overwrite").save
+retailcart_department2.write.format("jdbc").option("url","jdbc:mysql://dbserver.edu.cloudlab.com/labuser_database").option("dbtable","retailcart_department2").option("user","edu_labuser").option("password","edureka").option("driver","com.mysql.jdbc.Driver").mode("overwrite").save
+retailcart_item2.write.format("jdbc").option("url","jdbc:mysql://dbserver.edu.cloudlab.com/labuser_database").option("dbtable","retailcart_item2").option("user","edu_labuser").option("password","edureka").option("driver","com.mysql.jdbc.Driver").mode("overwrite").save
+retailcart_store2.write.format("jdbc").option("url","jdbc:mysql://dbserver.edu.cloudlab.com/labuser_database").option("dbtable","retailcart_store2").option("user","edu_labuser").option("password","edureka").option("driver","com.mysql.jdbc.Driver").mode("overwrite").save
+retailcart_currency2.write.format("jdbc").option("url","jdbc:mysql://dbserver.edu.cloudlab.com/labuser_database").option("dbtable","retailcart_currency2").option("user","edu_labuser").option("password","edureka").option("driver","com.mysql.jdbc.Driver").mode("overwrite").save
+
+mysql -u edu_labuser -h dbserver.edu.cloudlab.com -p
+
+password - edureka
+
+CREATE TABLE retailcart_calendar_details SELECT * FROM retailcart_calendar2;
+CREATE TABLE retailcart_department_details SELECT * FROM retailcart_department2;
+CREATE TABLE retailcart_item_details SELECT * FROM retailcart_item2;
+CREATE TABLE retailcart_store_details SELECT * FROM retailcart_store2;
+CREATE TABLE retailcart_currency_details SELECT * FROM retailcart_currency2;
+
+
+*******************************************************************************************************************************************
+*******************************************************************************************************************************************
+MYSQL TO HIVE
+================
+sqoop import --connect jdbc:mysql://dbserver.edu.cloudlab.com/labuser_database  --table retailcart_calendar_details -m 2 --hive-import --username edu_labuser  --hive-database edureka_918210_DB_Industry_projects --split-by calendar_date --password edureka
+sqoop import --connect jdbc:mysql://dbserver.edu.cloudlab.com/labuser_database  --table retailcart_department_details -m 2 --hive-import --username edu_labuser  --hive-database edureka_918210_DB_Industry_projects --split-by department_number --password edureka
+sqoop import --connect jdbc:mysql://dbserver.edu.cloudlab.com/labuser_database  --table retailcart_item_details -m 2 --hive-import --username edu_labuser  --hive-database edureka_918210_DB_Industry_projects --split-by item_id --password edureka
+sqoop import --connect jdbc:mysql://dbserver.edu.cloudlab.com/labuser_database  --table retailcart_store_details -m 2 --hive-import --username edu_labuser  --hive-database edureka_918210_DB_Industry_projects --split-by store_id --password edureka
+sqoop import --connect jdbc:mysql://dbserver.edu.cloudlab.com/labuser_database  --table retailcart_currency_details -m 2 --hive-import --username edu_labuser  --hive-database edureka_918210_DB_Industry_projects --split-by currency_id --password edureka
+
+
+
+HISTORY DATA
+======================
+======================
+4.2 History data for sales transactions and price change events:
+=====================================================================
+
+Store_Item_Price_Change
+============================
+
+-- df.read.orc("/tmp/orc/data.orc")
+
+val spark = SparkSession.builder().appName("Industry_Grade_Project-spark").master("local[*]").enableHiveSupport().getOrCreate();
+
+val store_item_price_change = spark.read.orc("/bigdatapgp/common_folder/project_retailcart/history_data/store_item_price_change")
+
+scala> store_item_price_change.printSchema
+root
+ |-- _col0: integer (nullable = true)
+ |-- _col1: integer (nullable = true)
+ |-- _col2: timestamp (nullable = true)
+ |-- _col3: string (nullable = true)
+ |-- _col4: string (nullable = true)
+ |-- _col5: date (nullable = true)
+ |-- _col6: decimal(15,2) (nullable = true)
+ |-- _col7: decimal(15,2) (nullable = true)
+
+val store_item_price_change2 = store_item_price_change.toDF("item_id","store_id","price_chng_activation_ts","geo_region_cd","price_change_reason","business_date","prev_price_amt","curr_price_amt")
+
+scala> store_item_price_change2.printSchema
+root
+ |-- item_id: integer (nullable = true)
+ |-- store_id: integer (nullable = true)
+ |-- price_chng_activation_ts: timestamp (nullable = true)
+ |-- geo_region_cd: string (nullable = true)
+ |-- price_change_reason: string (nullable = true)
+ |-- business_date: date (nullable = true)
+ |-- prev_price_amt: decimal(15,2) (nullable = true)
+ |-- curr_price_amt: decimal(15,2) (nullable = true)
+
+
+SPARK TO Hive
+=================
+
+store_item_price_change2.write.mode("overwrite").saveAsTable("edureka_918210_DB_Industry_projects.store_item_price_change")
+
+********************************************************************************************************************************************
+********************************************************************************************************************************************
+scala> spark.sql("select * from edureka_918210_DB_Industry_projects.store_item_price_change limit 10").show()
++-------+--------+------------------------+-------------+-------------------+-------------+--------------+--------------+
+|item_id|store_id|price_chng_activation_ts|geo_region_cd|price_change_reason|business_date|prev_price_amt|curr_price_amt|
++-------+--------+------------------------+-------------+-------------------+-------------+--------------+--------------+
+|  26096|    2569|    2020-02-01 00:33:...|           US|        HOPCPending|   2020-02-01|         38.88|         46.51|
+|  26096|    2569|    2020-02-01 08:58:...|           US|        HOPCPending|   2020-02-01|         46.51|         38.46|
+|  26096|    2569|    2020-02-02 00:33:...|           US|        HOPCPending|   2020-02-02|         24.39|         38.46|
+|  26096|    2569|    2020-02-03 00:28:...|           US|        HOPCPending|   2020-02-03|         37.99|         28.57|
+|  26096|    2569|    2020-02-03 08:52:...|           US|        HOPCPending|   2020-02-03|         28.57|         38.46|
+|  26096|    2569|    2020-02-04 00:28:...|           US|        HOPCPending|   2020-02-04|         23.32|         46.99|
+|  26096|    2569|    2020-02-04 08:51:...|           US|        HOPCPending|   2020-02-04|         46.99|         38.46|
+|  26096|    2569|    2020-02-05 00:28:...|           US|        HOPCPending|   2020-02-05|         38.15|         45.47|
+|  26096|    2569|    2020-02-05 08:52:...|           US|        HOPCPending|   2020-02-05|         45.47|         38.46|
+|  26096|    2569|    2020-02-06 00:28:...|           US|        HOPCPending|   2020-02-06|         46.46|         20.83|
++-------+--------+------------------------+-------------+-------------------+-------------+--------------+--------------+
+scala> 
+
+scala> spark.sql("select count(*) from edureka_918210_DB_Industry_projects.store_item_price_change").show()
++---------+
+| count(1)|
++---------+
+|144754674|
++---------+
+
+
+Store_item_sales_data
+============================
+
+val spark = SparkSession.builder().appName("Industry_Grade_Project-spark").master("local[*]").enableHiveSupport().getOrCreate();
+
+val store_item_sales_data = spark.read.orc("/bigdatapgp/common_folder/project_retailcart/history_data/store_item_sales_data")
+
+scala> store_item_sales_data.printSchema
+root
+ |-- _col0: integer (nullable = true)
+ |-- _col1: date (nullable = true)
+ |-- _col2: integer (nullable = true)
+ |-- _col3: integer (nullable = true)
+ |-- _col4: byte (nullable = true)
+ |-- _col5: string (nullable = true)
+ |-- _col6: string (nullable = true)
+ |-- _col7: integer (nullable = true)
+ |-- _col8: decimal(9,2) (nullable = true)
+ |-- _col9: date (nullable = true)
+ |-- _col10: string (nullable = true)
+ |-- _col11: short (nullable = true)
+
+val store_item_sales_data2 = store_item_sales_data.toDF("sales_id","Sales_date","store_id","item_id","scan_type","geo_region_cd","currency_code","scan_id","sold_unit_quantity","scan_date","scan_time","scan_dept_nbr")
+
+
+scala> store_item_sales_data2.printSchema
+root
+ |-- sales_id: integer (nullable = true)
+ |-- Sales_date: date (nullable = true)
+ |-- store_id: integer (nullable = true)
+ |-- item_id: integer (nullable = true)
+ |-- scan_type: byte (nullable = true)
+ |-- geo_region_cd: string (nullable = true)
+ |-- currency_code: string (nullable = true)
+ |-- scan_id: integer (nullable = true)
+ |-- sold_unit_quantity: decimal(9,2) (nullable = true)
+ |-- scan_date: date (nullable = true)
+ |-- scan_time: string (nullable = true)
+ |-- scan_dept_nbr: short (nullable = true)
+ 
+ ==============================================================================================================================
+
+SPARK TO Hive
+=================
+
+store_item_sales_data2.write.mode("overwrite").saveAsTable("edureka_918210_DB_Industry_projects.store_item_sales_data")
+
+spark.sql("select * from edureka_918210_DB_Industry_projects.store_item_sales_data limit 10").show()
+
+scala> spark.sql("select * from edureka_918210_DB_Industry_projects.store_item_sales_data limit 10").show()
++--------+----------+--------+---------+---------+-------------+-------------+---------+------------------+----------+---------+-------------+
+|sales_id|Sales_date|store_id|  item_id|scan_type|geo_region_cd|currency_code|  scan_id|sold_unit_quantity| scan_date|scan_time|scan_dept_nbr|
++--------+----------+--------+---------+---------+-------------+-------------+---------+------------------+----------+---------+-------------+
+|    1001|2020-02-06|    3655| 90216017|        0|           US|          AED| 89074521|              1.00|2020-02-06| 00:08:16|           92|
+|    1002|2020-02-06|    1150| 98415245|        0|           US|          SGD| 94109944|              1.00|2020-02-06| 00:24:23|           79|
+|    1003|2020-02-06|    3655| 91599641|        0|           US|          AED|104343546|              1.00|2020-02-06| 05:52:37|           95|
+|    1004|2020-02-06|    1150|163955345|        0|           US|          SGD| 94263098|              1.00|2020-02-06| 23:58:27|           79|
+|    1005|2020-02-06|    3655|106256357|        0|           US|          AED| 89872996|              1.00|2020-02-06| 04:56:24|           90|
+|    1006|2020-02-06|    1150|163998017|        0|           US|          SGD| 94263094|              1.00|2020-02-06| 08:16:43|           79|
+|    1007|2020-02-06|    3655|119836673|        0|           US|          AED|177993709|              1.00|2020-02-06| 22:11:05|           92|
+|    1008|2020-02-06|    1161|100372044|        0|           US|          SGD| 89733586|              1.00|2020-02-06| 21:36:52|            2|
+|    1009|2020-02-06|    3655|175643357|        0|           US|          AED|193509111|              1.00|2020-02-06| 08:40:47|           92|
+|    1010|2020-02-06|    1172| 93985723|        0|           US|          SGD|196610296|              1.00|2020-02-06| 19:29:32|           27|
++--------+----------+--------+---------+---------+-------------+-------------+---------+------------------+----------+---------+-------------+
+
+scala> spark.sql("select count(*) from edureka_918210_DB_Industry_projects.store_item_sales_data").show()
++--------+
+|count(1)|
++--------+
+|13840801|
++--------+
+
+********************************************************************************************************************************************
+
+
+scala> spark.sql("Show tables in edureka_918210_DB_Industry_projects").show(false)
++-----------------------------------+--------------------------------------------------+-----------+
+|database                           |tableName                                         |isTemporary|
++-----------------------------------+--------------------------------------------------+-----------+
+|edureka_918210_db_industry_projects|edureka_918210_retailcart_price_change_events     |false      |
+|edureka_918210_db_industry_projects|edureka_918210_retailcart_sales_transaction_events|false      |
+|edureka_918210_db_industry_projects|retailcart_calendar_details                       |false      |
+|edureka_918210_db_industry_projects|retailcart_currency_details                       |false      |
+|edureka_918210_db_industry_projects|retailcart_department_details                     |false      |
+|edureka_918210_db_industry_projects|retailcart_item_details                           |false      |
+|edureka_918210_db_industry_projects|retailcart_store_details                          |false      |
+|edureka_918210_db_industry_projects|store_item_price_change                           |false      |
+|edureka_918210_db_industry_projects|store_item_sales_data                             |false      |
++-----------------------------------+--------------------------------------------------+-----------+
+scala> 
+
+REFER TO :
+============
+https://kontext.tech/column/spark/294/spark-save-dataframe-to-hive-table
+
+***************************************************************************************************************************************************
+
+REAL TIME  DATA
+==================
+/mnt/home/edureka_918210/project_retailcart/realtimedata
+
+[edureka_918210@ip-20-0-41-164 realtimedata]$ pwd
+/mnt/home/edureka_918210/project_retailcart/realtimedata
+[edureka_918210@ip-20-0-41-164 realtimedata]$ 
+
+[edureka_918210@ip-20-0-41-164 realtimedata]$ ls -lart
+total 60
+-rwxr-xr-x 1 edureka_918210 edureka_918210 41546 Jan 10 15:03 price_change_event.txt
+-rwxr-xr-x 1 edureka_918210 edureka_918210  5029 Jan 10 15:03 real_time_simulator.py
+drwxr-xr-x 2 edureka_918210 edureka_918210  6144 Jan 10 15:03 .
+
+python2 realtimedata/real_time_simulator.py edureka_918210  
+
+labuser_database.username_retailcart_sales_transaction_events
+labuser_database.username_retailcart_price_change_events
+==========================================================================================
+mysql -u edu_labuser -h dbserver.edu.cloudlab.com -p
+==========================================================================================
+password - edureka
+DB - labuser_database
+==========================================================================================
+MySQL [labuser_database]> describe edureka_918210_retailcart_price_change_events
+    -> ;
++--------------------------+---------------+------+-----+---------+----------------+
+| Field                    | Type          | Null | Key | Default | Extra          |
++--------------------------+---------------+------+-----+---------+----------------+
+| event_id                 | int(11)       | NO   | PRI | NULL    | auto_increment |
+| item_id                  | int(11)       | YES  |     | NULL    |                |
+| store_id                 | int(11)       | YES  |     | NULL    |                |
+| price_chng_activation_ts | varchar(30)   | YES  |     | NULL    |                |
+| geo_region_cd            | varchar(5)    | YES  |     | NULL    |                |
+| price_change_reason      | varchar(50)   | YES  |     | NULL    |                |
+| prev_price_amt           | decimal(15,2) | YES  |     | NULL    |                |
+| curr_price_amt           | decimal(15,2) | YES  |     | NULL    |                |
+| row_insertion_dttm       | varchar(30)   | YES  |     | NULL    |                |
++--------------------------+---------------+------+-----+---------+----------------+
+9 rows in set (1.89 sec)
+
+MySQL [labuser_database]> select count(*) from edureka_918210_retailcart_price_change_events
+    -> ;
++----------+
+| count(*) |
++----------+
+|     1094 |
++----------+
+1 row in set (0.94 sec)
+MySQL [labuser_database]> 
+
+MySQL [labuser_database]> 
+MySQL [labuser_database]> describe edureka_918210_retailcart_sales_transaction_events
+    -> ;
++--------------------+--------------+------+-----+---------+----------------+
+| Field              | Type         | Null | Key | Default | Extra          |
++--------------------+--------------+------+-----+---------+----------------+
+| sales_id           | int(11)      | NO   | PRI | NULL    | auto_increment |
+| store_id           | int(11)      | YES  |     | NULL    |                |
+| item_id            | int(11)      | YES  |     | NULL    |                |
+| scan_type          | int(11)      | YES  |     | NULL    |                |
+| geo_region_cd      | varchar(5)   | YES  |     | NULL    |                |
+| currency_code      | varchar(5)   | YES  |     | NULL    |                |
+| scan_id            | int(11)      | YES  |     | NULL    |                |
+| sold_unit_quantity | decimal(9,2) | YES  |     | NULL    |                |
+| sales_timestamp    | varchar(30)  | YES  |     | NULL    |                |
+| scan_dept_nbr      | int(11)      | YES  |     | NULL    |                |
+| row_insertion_dttm | varchar(30)  | YES  |     | NULL    |                |
++--------------------+--------------+------+-----+---------+----------------+
+11 rows in set (0.00 sec)
+MySQL [labuser_database]> 
+
+MySQL [labuser_database]> 
+MySQL [labuser_database]> select count(*) from edureka_918210_retailcart_sales_transaction_events;
++----------+
+| count(*) |
++----------+
+|     2428 |
++----------+
+1 row in set (0.25 sec)
+MySQL [labuser_database]> 
+
+LOCATION
+============
+/mnt/home/edureka_918210/project_retailcart/history_data - File Location
+flume1.conf  -  File Name
+
+SPARK STREAMING - FLUME
+=============================
+agent.channels.ch1.type = memory
+agent.sources.sql-source.channels = ch1
+agent.channels = ch1
+agent.sinks = HDFS
+
+agent.sources = sql-source
+agent.sources.sql-source.type = org.keedio.flume.source.SQLSource
+
+agent.sources.sql-source.connection.url = jdbc:mysql://dbserver.edu.cloudlab.com/labuser_database
+agent.sources.sql-source.user = edu_labuser
+agent.sources.sql-source.password = edureka
+agent.sources.sql-source.table = labuser_database.edureka_918210_retailcart_sales_transaction_events
+agent.sources.sql-source.columns.to.select = *
+
+agent.sources.sql-source.incremental.column.name = sales_id
+
+agent.sources.sql-source.run.query.delay=5000
+
+agent.sinks.HDFS.channel = ch1
+agent.sinks.HDFS.type = hdfs
+agent.sinks.HDFS.hdfs.path = hdfs://nameservice1/user/edureka_918210/project_retailcart
+agent.sinks.HDFS.hdfs.fileType = DataStream
+agent.sinks.HDFS.hdfs.writeFormat = Text
+agent.sinks.HDFS.hdfs.rollSize = 268435456
+agent.sinks.HDFS.hdfs.rollInterval = 0
+agent.sinks.HDFS.hdfs.rollCount = 0
+
+COMMANDS :
+==============
+FLUME CONFIGURATION :
+=======================
+nohup flume-ng agent -n a1 -f /mnt/home/edureka_918210/project_retailcart/history_data/flume1.conf -Dflume.root.logger=INFO,console &
+nohup flume-ng agent -n a1 -f /mnt/home/edureka_918210/project_retailcart/history_data/flume1.conf -Dflume.root.logger=INFO,console & --- for labuser_database.edureka_918210_retailcart_price_change_events
+
+FLUME  Logger
+===============
+21/01/12 22:05:29 INFO conf.FlumeConfiguration: Processing:HDFS
+21/01/12 22:05:29 INFO conf.FlumeConfiguration: Processing:HDFS
+21/01/12 22:05:29 INFO conf.FlumeConfiguration: Processing:HDFS
+21/01/12 22:05:29 INFO conf.FlumeConfiguration: Processing:HDFS
+21/01/12 22:05:29 INFO conf.FlumeConfiguration: Processing:HDFS
+21/01/12 22:05:29 INFO conf.FlumeConfiguration: Processing:HDFS
+21/01/12 22:05:29 INFO conf.FlumeConfiguration: Processing:HDFS
+21/01/12 22:05:29 INFO conf.FlumeConfiguration: Processing:HDFS
+21/01/12 22:05:29 INFO conf.FlumeConfiguration: Added sinks: HDFS Agent: agent
+21/01/12 22:05:29 INFO conf.FlumeConfiguration: Post-validation flume configuration contains configuration for agents: [agent]
+21/01/12 22:05:29 WARN node.AbstractConfigurationProvider: No configuration found for this host:a1
+21/01/12 22:05:29 INFO node.Application: Starting new configuration:{ sourceRunners:{} sinkRunners:{} channels:{} }
+
+
+hive tables from mysql
+================================================================
+sqoop import --connect jdbc:mysql://dbserver.edu.cloudlab.com/labuser_database \
+--username edu_labuser \
+--P \
+--split-by event_id \
+--columns event_id,item_id,store_id,price_chng_activation_ts,geo_region_cd,price_change_reason,prev_price_amt,curr_price_amt,row_insertion_dttm \
+--table edureka_918210_retailcart_price_change_events \
+--target-dir /user/edureka_918210/project_retailcart/edureka_918210_retailcart_price_change_events \
+--fields-terminated-by "," \
+--hive-import \
+--create-hive-table \
+--hive-table edureka_918210_DB_Industry_projects.edureka_918210_retailcart_price_change_events
+
+
+
+sqoop import --connect jdbc:mysql://dbserver.edu.cloudlab.com/labuser_database \
+--username edu_labuser \
+--P \
+--split-by sales_id \
+--columns sales_id,store_id,item_id,scan_type,geo_region_cd,currency_code,scan_id,sold_unit_quantity,sales_timestamp,scan_dept_nbr,row_insertion_dttm \
+--table edureka_918210_retailcart_sales_transaction_events \
+--target-dir /user/edureka_918210/project_retailcart/edureka_918210_retailcart_sales_transaction_events \
+--fields-terminated-by "," \
+--hive-import \
+--create-hive-table \
+--hive-table edureka_918210_DB_Industry_projects.edureka_918210_retailcart_sales_transaction_events
+
+/user/edureka_918210/edureka_918210_retailcart_price_change_events
+/user/edureka_918210/edureka_918210_retailcart_sales_transaction_events
+
+spark.sql("select * from edureka_918210_DB_Industry_projects.edureka_918210_retailcart_price_change_events").show(false)
+spark.sql("select * from edureka_918210_DB_Industry_projects.edureka_918210_retailcart_sales_transaction_events").show(false)
+
+
+MYSQL TO HBase
+================
+
+sqoop import --connect jdbc:mysql://dbserver.edu.cloudlab.com/labuser_database --table edureka_918210_retailcart_sales_transaction_events --hbase-table 'edureka_918210_retailcart_sales_transaction_events' --column-family cf2 --username edu_labuser   --hbase-create-table --columns sales_id,store_id,item_id,scan_type,geo_region_cd,currency_code,scan_id,sold_unit_quantity,sales_timestamp,scan_dept_nbr,row_insertion_dttm --hbase-row-key sales_id -m 1 --password edureka
+
+sqoop import --connect jdbc:mysql://dbserver.edu.cloudlab.com/labuser_database --table edureka_918210_retailcart_price_change_events --hbase-table 'edureka_918210_retailcart_price_change_events' --column-family cf2 --username edu_labuser   --hbase-create-table --columns event_id,item_id,store_id,price_chng_activation_ts,geo_region_cd,price_change_reason,prev_price_amt,curr_price_amt,row_insertion_dttm --hbase-row-key event_id -m 1 --password edureka
+
+SAVE TO DF and CREATE JOINS
+==================================
+val edureka_918210_retailcart_price_change_events_DF = spark.sql("select * from edureka_918210_DB_Industry_projects.edureka_918210_retailcart_price_change_events")
+val edureka_918210_retailcart_sales_transaction_events_DF = spark.sql("select * from edureka_918210_DB_Industry_projects.edureka_918210_retailcart_sales_transaction_events")
+
+val JoinDF = edureka_918210_retailcart_price_change_events_DF.join(edureka_918210_retailcart_sales_transaction_events_DF,"item_id").select("item_id","price_chng_activation_ts","sales_timestamp","curr_price_amt")
+
+
+scala> JoinDF.printSchema
+root
+ |-- item_id: integer (nullable = true)
+ |-- price_chng_activation_ts: string (nullable = true)
+ |-- sales_timestamp: string (nullable = true)
+ |-- curr_price_amt: double (nullable = true)
+
+val JoinDF2 = JoinDF.selectExpr("item_id","cast(price_chng_activation_ts as timestamp) start_time","cast(sales_timestamp as timestamp) end_time","curr_price_amt")
+
+scala> JoinDF2.show(5)
++--------+--------------------+--------------------+--------------+             
+| item_id|          start_time|            end_time|curr_price_amt|
++--------+--------------------+--------------------+--------------+
+|61168437|2021-01-12 23:39:...|2021-01-12 23:41:...|         98.69|
+|61168437|2021-01-12 23:39:...|2021-01-12 23:41:...|         98.69|
+|61168437|2021-01-12 23:39:...|2021-01-12 23:41:...|         98.69|
+|61168437|2021-01-12 23:39:...|2021-01-12 23:41:...|         98.69|
+|61168437|2021-01-12 23:39:...|2021-01-12 23:41:...|         98.69|
++--------+--------------------+--------------------+--------------+
+only showing top 5 rows
+
+val JoinDF3 = JoinDF2.join(edureka_918210_retailcart_sales_transaction_events_DF,"item_id").select("item_id","store_id","start_time","end_time","curr_price_amt")
+
+scala> JoinDF3.printSchema
+root
+ |-- item_id: integer (nullable = true)
+ |-- store_id: integer (nullable = true)
+ |-- start_time: timestamp (nullable = true)
+ |-- end_time: timestamp (nullable = true)
+ |-- curr_price_amt: double (nullable = true)
+
+
+scala> JoinDF3.repartition(1).write.format("csv").save("/user/edureka_918210/project_retailcart/sales_result")
+                                                                                
+scala> 
+scala> 
+
+############################################################################################################################
+
+[edureka_918210@ip-20-0-41-164 project_retailcart]$ hadoop fs -ls /user/edureka_918210/project_retailcart/sales_result
+Found 2 items
+-rw-r--r--   3 edureka_918210 hadoop          0 2021-01-13 16:24 /user/edureka_918210/project_retailcart/sales_result/_SUCCESS
+-rw-r--r--   3 edureka_918210 hadoop    1816227 2021-01-13 16:24 /user/edureka_918210/project_retailcart/sales_result/part-00000-6b1e7c7b-d602-4671-aa76-4d2daf53b5
+b8.csv
+[edureka_918210@ip-20-0-41-164 project_retailcart]$ 
+[edureka_918210@ip-20-0-41-164 project_retailcart]$ 
+
+###############################################################################################################################
+
+
+OBJECTIVES :
+===================
+
+Total sales in a day/week/quarter (both in terms of sales revenue and units sold)
+• Top 5 most selling item categories in a day (both in terms of amount and quantity)
+• Top 5 most profitable items in a day/week/quarter
+• Top 5 most profitable stores in a day/week/month/quarter
+• Total profit or loss in U.S. dollars every day in percentage
+
+Top 5 most selling item categories in a day (both in terms of amount and quantity)
+======================================================================================
+scala> JoinDF3.printSchema
+root
+ |-- item_id: integer (nullable = true)
+ |-- store_id: integer (nullable = true)
+ |-- start_time: timestamp (nullable = true)
+ |-- end_time: timestamp (nullable = true)
+ |-- curr_price_amt: double (nullable = true)
+
+val results = JoinDF3.withColumn("date", to_date($"start_time"))
+
+scala> results.printSchema
+root
+ |-- item_id: integer (nullable = true)
+ |-- store_id: integer (nullable = true)
+ |-- start_time: timestamp (nullable = true)
+ |-- end_time: timestamp (nullable = true)
+ |-- curr_price_amt: double (nullable = true)
+ |-- date: date (nullable = true)
+scala> 
+
+scala> results.groupBy("item_id","date").count().orderBy("count").show(false)
++--------+----------+-----+
+|item_id |date      |count|
++--------+----------+-----+
+|61182751|2021-01-12|1    |
+|61170975|2021-01-12|1    |
+|61181052|2021-01-12|4    |
+|61181042|2021-01-12|4    |
+|61182606|2021-01-12|8    |
+|61188366|2021-01-12|32   |
+|61182255|2021-01-12|48   |
+|61168437|2021-01-12|48   |
+|61182603|2021-01-12|50   |
+|61182258|2021-01-12|72   |
+|61182866|2021-01-12|500  |
+|61189264|2021-01-12|1800 |
+|61188772|2021-01-12|6250 |
+|61182903|2021-01-12|7290 |
+|61189259|2021-01-12|10092|
++--------+----------+-----+
+scala> 
+
+• Top 5 most profitable items in a day/week/quarter
+=========================================================
+val results2 = results.groupBy("item_id","date","curr_price_amt").count().orderBy("count")
+scala> results2.printSchema
+root
+ |-- item_id: integer (nullable = true)
+ |-- date: date (nullable = true)
+ |-- curr_price_amt: double (nullable = true)
+ |-- count: long (nullable = false)
+scala> 
+
+val results3 = results2.selectExpr("item_id","date","curr_price_amt","cast(count as double) count")
+
+val results4 = results3.selectExpr("item_id","date","curr_price_amt","count","curr_price_amt * count")
+
+scala> results4.show(10)
++--------+----------+--------------+-----+------------------------+
+| item_id|      date|curr_price_amt|count|(curr_price_amt * count)|
++--------+----------+--------------+-----+------------------------+
+|61182751|2021-01-12|         86.36|  1.0|                   86.36|
+|61170975|2021-01-12|         65.04|  1.0|                   65.04|
+|61181052|2021-01-12|         86.31|  4.0|                  345.24|
+|61181042|2021-01-12|         95.58|  4.0|                  382.32|
+|61182606|2021-01-12|         12.67|  8.0|                  101.36|
+|61188366|2021-01-12|         77.53| 32.0|                 2480.96|
+|61168437|2021-01-12|         98.69| 48.0|                 4737.12|
+|61182255|2021-01-12|         57.78| 48.0|                 2773.44|
+|61182603|2021-01-12|         30.25| 50.0|                  1512.5|
+|61182258|2021-01-12|         77.53| 72.0|                 5582.16|
++--------+----------+--------------+-----+------------------------+
+only showing top 10 rows
+
+Top 5 most profitable stores in a day/week/month/quarter
+===========================================================
+JoinDF3.printSchema
+results4.printSchema
+
+val JoinDF4 = JoinDF3.selectExpr("item_id","store_id")
+
+val Final = results4.join(JoinDF4,"item_id").select("item_id","date","curr_price_amt","count","(curr_price_amt * count)","store_id")
+
+scala> Final.show(10)
++--------+----------+--------------+-----+------------------------+--------+    
+| item_id|      date|curr_price_amt|count|(curr_price_amt * count)|store_id|
++--------+----------+--------------+-----+------------------------+--------+
+|61182903|2021-01-12|         84.99|729.0|                61957.71|    5907|
+|61182903|2021-01-12|         84.99|729.0|                61957.71|    5907|
+|61182903|2021-01-12|         84.99|729.0|                61957.71|    5907|
+|61182903|2021-01-12|         84.99|729.0|                61957.71|    5907|
+|61182903|2021-01-12|         84.99|729.0|                61957.71|    5907|
+|61182903|2021-01-12|         84.99|729.0|                61957.71|    5370|
+|61182903|2021-01-12|         84.99|729.0|                61957.71|    5370|
+|61182903|2021-01-12|         84.99|729.0|                61957.71|    5370|
+|61182903|2021-01-12|         84.99|729.0|                61957.71|    5370|
+|61182903|2021-01-12|         84.99|729.0|                61957.71|    5370|
++--------+----------+--------------+-----+------------------------+--------+
+only showing top 10 rows
+
+Final.createOrReplaceTempView("FinalResults")
+
+spark.sql("Describe FinalResults").show(false)
++------------------------+---------+-------+
+|col_name                |data_type|comment|
++------------------------+---------+-------+
+|item_id                 |int      |null   |
+|date                    |date     |null   |
+|curr_price_amt          |double   |null   |
+|count                   |double   |null   |
+|(curr_price_amt * count)|double   |null   |
+|store_id                |int      |null   |
++------------------------+---------+-------+
+
+scala> spark.sql("SELECT item_id,count(item_id),sum((curr_price_amt * count)) as Total FROM FinalResults GROUP BY item_id ORDER BY TOTAL desc").show(false)
+
++--------+--------------+-------------------+                                   
+|item_id |count(item_id)|Total              |
++--------+--------------+-------------------+
+|61182903|29160         |3.238601454001014E9|
+|61188772|6250          |1.2796875E9        |
+|61189264|7200          |9.284625E7         |
+|61182866|500           |2.29175E7          |
+|61189259|60552         |1.298567916000161E7|
+|61182258|72            |401915.5199999995  |
+|61168437|48            |227381.75999999986 |
+|61182255|48            |133125.12000000005 |
+|61188366|32            |79390.72000000002  |
+|61182603|50            |75625.0            |
+|61181042|4             |1529.28            |
+|61181052|4             |1380.96            |
+|61182606|8             |810.88             |
+|61182751|1             |86.36              |
+|61170975|1             |65.04              |
++--------+--------------+-------------------+
+val df1 = spark.sql("SELECT item_id,count(item_id),sum((curr_price_amt * count)) as Total FROM FinalResults GROUP BY item_id ORDER BY TOTAL desc")
+scala> df1.printSchema
+root
+ |-- item_id: integer (nullable = true)
+ |-- count(item_id): long (nullable = false)
+ |-- Total: double (nullable = true)
+
+val df2 = Final.selectExpr("item_id","store_id")
+scala> df2.printSchema
+root
+ |-- item_id: integer (nullable = true)
+ |-- store_id: integer (nullable = true)
+
+val Final_Results = df2.join(df1,"item_id").distinct()
+
+Top 5 most profitable stores in a day/week/month/quarter
+================================================================
+
+scala> Final_Results.show(false)
++--------+--------+--------------+-------------------+                          
+|item_id |store_id|count(item_id)|Total              |
++--------+--------+--------------+-------------------+
+|61182903|5907    |29160         |3.238601454001018E9|
+|61182903|5370    |29160         |3.238601454001018E9|
+|61182903|4527    |29160         |3.238601454001018E9|
+|61182903|3824    |29160         |3.238601454001018E9|
+|61182903|3166    |29160         |3.238601454001018E9|
+|61182903|3008    |29160         |3.238601454001018E9|
+|61182903|2223    |29160         |3.238601454001018E9|
+|61181042|1131    |4             |1529.28            |
+|61182255|1989    |48            |133125.12000000005 |
+|61182255|1378    |48            |133125.12000000005 |
+|61182255|1233    |48            |133125.12000000005 |
+|61182606|1286    |8             |810.88             |
+|61182606|614     |8             |810.88             |
+|61189264|1987    |7200          |9.284625E7         |
+|61189264|1422    |7200          |9.284625E7         |
+|61189264|1377    |7200          |9.284625E7         |
+|61189264|1199    |7200          |9.284625E7         |
+|61189264|422     |7200          |9.284625E7         |
+|61188772|3397    |6250          |1.2796875E9        |
+|61188772|3352    |6250          |1.2796875E9        |
++--------+--------+--------------+-------------------+
+only showing top 20 rows
+scala> 
+
+• Total profit or loss in U.S. dollars every day in percentage
+===================================================================
+
+scala> results4.printSchema
+root
+ |-- item_id: integer (nullable = true)
+ |-- date: date (nullable = true)
+ |-- curr_price_amt: double (nullable = true)
+ |-- count: double (nullable = false)
+ |-- (curr_price_amt * count): double (nullable = true)
+ 
+ val results5 = results4.selectExpr("item_id","date")
+
+scala> Final_Results.printSchema
+root
+ |-- item_id: integer (nullable = true)
+ |-- store_id: integer (nullable = true)
+ |-- count(item_id): long (nullable = false)
+ |-- Total: double (nullable = true)
+ 
+ 
+val Final_Results2 = Final_Results.join(results5,"item_id").distinct()
+
+Final_Results2.createOrReplaceTempView("totalprofits")
+
+val TotalAmountInaDay = spark.sql("select date,sum(Total) from totalprofits group by date")
+
+
+scala> TotalAmountInaDay.show(false)
++----------+---------------------+                                              
+|date      |sum(Total)           |
++----------+---------------------+
+|2021-01-12|3.6139003748647095E10|
++----------+---------------------+
+
+=============================================================================================================================================
+

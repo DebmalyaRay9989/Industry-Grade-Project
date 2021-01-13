@@ -1,0 +1,469 @@
+
+REAL TIME  DATA
+==================
+/mnt/home/edureka_918210/project_retailcart/realtimedata
+
+[edureka_918210@ip-20-0-41-164 realtimedata]$ pwd
+/mnt/home/edureka_918210/project_retailcart/realtimedata
+[edureka_918210@ip-20-0-41-164 realtimedata]$ 
+
+[edureka_918210@ip-20-0-41-164 realtimedata]$ ls -lart
+total 60
+-rwxr-xr-x 1 edureka_918210 edureka_918210 41546 Jan 10 15:03 price_change_event.txt
+-rwxr-xr-x 1 edureka_918210 edureka_918210  5029 Jan 10 15:03 real_time_simulator.py
+drwxr-xr-x 2 edureka_918210 edureka_918210  6144 Jan 10 15:03 .
+
+python2 realtimedata/real_time_simulator.py edureka_918210  
+
+labuser_database.username_retailcart_sales_transaction_events
+labuser_database.username_retailcart_price_change_events
+==========================================================================================
+mysql -u edu_labuser -h dbserver.edu.cloudlab.com -p
+==========================================================================================
+password - edureka
+DB - labuser_database
+==========================================================================================
+MySQL [labuser_database]> describe edureka_918210_retailcart_price_change_events
+    -> ;
++--------------------------+---------------+------+-----+---------+----------------+
+| Field                    | Type          | Null | Key | Default | Extra          |
++--------------------------+---------------+------+-----+---------+----------------+
+| event_id                 | int(11)       | NO   | PRI | NULL    | auto_increment |
+| item_id                  | int(11)       | YES  |     | NULL    |                |
+| store_id                 | int(11)       | YES  |     | NULL    |                |
+| price_chng_activation_ts | varchar(30)   | YES  |     | NULL    |                |
+| geo_region_cd            | varchar(5)    | YES  |     | NULL    |                |
+| price_change_reason      | varchar(50)   | YES  |     | NULL    |                |
+| prev_price_amt           | decimal(15,2) | YES  |     | NULL    |                |
+| curr_price_amt           | decimal(15,2) | YES  |     | NULL    |                |
+| row_insertion_dttm       | varchar(30)   | YES  |     | NULL    |                |
++--------------------------+---------------+------+-----+---------+----------------+
+9 rows in set (1.89 sec)
+
+MySQL [labuser_database]> select count(*) from edureka_918210_retailcart_price_change_events
+    -> ;
++----------+
+| count(*) |
++----------+
+|     1094 |
++----------+
+1 row in set (0.94 sec)
+MySQL [labuser_database]> 
+
+MySQL [labuser_database]> 
+MySQL [labuser_database]> describe edureka_918210_retailcart_sales_transaction_events
+    -> ;
++--------------------+--------------+------+-----+---------+----------------+
+| Field              | Type         | Null | Key | Default | Extra          |
++--------------------+--------------+------+-----+---------+----------------+
+| sales_id           | int(11)      | NO   | PRI | NULL    | auto_increment |
+| store_id           | int(11)      | YES  |     | NULL    |                |
+| item_id            | int(11)      | YES  |     | NULL    |                |
+| scan_type          | int(11)      | YES  |     | NULL    |                |
+| geo_region_cd      | varchar(5)   | YES  |     | NULL    |                |
+| currency_code      | varchar(5)   | YES  |     | NULL    |                |
+| scan_id            | int(11)      | YES  |     | NULL    |                |
+| sold_unit_quantity | decimal(9,2) | YES  |     | NULL    |                |
+| sales_timestamp    | varchar(30)  | YES  |     | NULL    |                |
+| scan_dept_nbr      | int(11)      | YES  |     | NULL    |                |
+| row_insertion_dttm | varchar(30)  | YES  |     | NULL    |                |
++--------------------+--------------+------+-----+---------+----------------+
+11 rows in set (0.00 sec)
+MySQL [labuser_database]> 
+
+MySQL [labuser_database]> 
+MySQL [labuser_database]> select count(*) from edureka_918210_retailcart_sales_transaction_events;
++----------+
+| count(*) |
++----------+
+|     2428 |
++----------+
+1 row in set (0.25 sec)
+MySQL [labuser_database]> 
+
+LOCATION
+============
+/mnt/home/edureka_918210/project_retailcart/history_data - File Location
+flume1.conf  -  File Name
+
+SPARK STREAMING - FLUME
+=============================
+agent.channels.ch1.type = memory
+agent.sources.sql-source.channels = ch1
+agent.channels = ch1
+agent.sinks = HDFS
+
+agent.sources = sql-source
+agent.sources.sql-source.type = org.keedio.flume.source.SQLSource
+
+agent.sources.sql-source.connection.url = jdbc:mysql://dbserver.edu.cloudlab.com/labuser_database
+agent.sources.sql-source.user = edu_labuser
+agent.sources.sql-source.password = edureka
+agent.sources.sql-source.table = labuser_database.edureka_918210_retailcart_sales_transaction_events
+agent.sources.sql-source.columns.to.select = *
+
+agent.sources.sql-source.incremental.column.name = sales_id
+
+agent.sources.sql-source.run.query.delay=5000
+
+agent.sinks.HDFS.channel = ch1
+agent.sinks.HDFS.type = hdfs
+agent.sinks.HDFS.hdfs.path = hdfs://nameservice1/user/edureka_918210/project_retailcart
+agent.sinks.HDFS.hdfs.fileType = DataStream
+agent.sinks.HDFS.hdfs.writeFormat = Text
+agent.sinks.HDFS.hdfs.rollSize = 268435456
+agent.sinks.HDFS.hdfs.rollInterval = 0
+agent.sinks.HDFS.hdfs.rollCount = 0
+
+COMMANDS :
+==============
+FLUME CONFIGURATION :
+=======================
+nohup flume-ng agent -n a1 -f /mnt/home/edureka_918210/project_retailcart/history_data/flume1.conf -Dflume.root.logger=INFO,console &
+nohup flume-ng agent -n a1 -f /mnt/home/edureka_918210/project_retailcart/history_data/flume1.conf -Dflume.root.logger=INFO,console & --- for labuser_database.edureka_918210_retailcart_price_change_events
+
+FLUME  Logger
+===============
+21/01/12 22:05:29 INFO conf.FlumeConfiguration: Processing:HDFS
+21/01/12 22:05:29 INFO conf.FlumeConfiguration: Processing:HDFS
+21/01/12 22:05:29 INFO conf.FlumeConfiguration: Processing:HDFS
+21/01/12 22:05:29 INFO conf.FlumeConfiguration: Processing:HDFS
+21/01/12 22:05:29 INFO conf.FlumeConfiguration: Processing:HDFS
+21/01/12 22:05:29 INFO conf.FlumeConfiguration: Processing:HDFS
+21/01/12 22:05:29 INFO conf.FlumeConfiguration: Processing:HDFS
+21/01/12 22:05:29 INFO conf.FlumeConfiguration: Processing:HDFS
+21/01/12 22:05:29 INFO conf.FlumeConfiguration: Added sinks: HDFS Agent: agent
+21/01/12 22:05:29 INFO conf.FlumeConfiguration: Post-validation flume configuration contains configuration for agents: [agent]
+21/01/12 22:05:29 WARN node.AbstractConfigurationProvider: No configuration found for this host:a1
+21/01/12 22:05:29 INFO node.Application: Starting new configuration:{ sourceRunners:{} sinkRunners:{} channels:{} }
+
+
+hive tables from mysql
+================================================================
+sqoop import --connect jdbc:mysql://dbserver.edu.cloudlab.com/labuser_database \
+--username edu_labuser \
+--P \
+--split-by event_id \
+--columns event_id,item_id,store_id,price_chng_activation_ts,geo_region_cd,price_change_reason,prev_price_amt,curr_price_amt,row_insertion_dttm \
+--table edureka_918210_retailcart_price_change_events \
+--target-dir /user/edureka_918210/project_retailcart/edureka_918210_retailcart_price_change_events \
+--fields-terminated-by "," \
+--hive-import \
+--create-hive-table \
+--hive-table edureka_918210_DB_Industry_projects.edureka_918210_retailcart_price_change_events
+
+
+
+sqoop import --connect jdbc:mysql://dbserver.edu.cloudlab.com/labuser_database \
+--username edu_labuser \
+--P \
+--split-by sales_id \
+--columns sales_id,store_id,item_id,scan_type,geo_region_cd,currency_code,scan_id,sold_unit_quantity,sales_timestamp,scan_dept_nbr,row_insertion_dttm \
+--table edureka_918210_retailcart_sales_transaction_events \
+--target-dir /user/edureka_918210/project_retailcart/edureka_918210_retailcart_sales_transaction_events \
+--fields-terminated-by "," \
+--hive-import \
+--create-hive-table \
+--hive-table edureka_918210_DB_Industry_projects.edureka_918210_retailcart_sales_transaction_events
+
+/user/edureka_918210/edureka_918210_retailcart_price_change_events
+/user/edureka_918210/edureka_918210_retailcart_sales_transaction_events
+
+spark.sql("select * from edureka_918210_DB_Industry_projects.edureka_918210_retailcart_price_change_events").show(false)
+spark.sql("select * from edureka_918210_DB_Industry_projects.edureka_918210_retailcart_sales_transaction_events").show(false)
+
+
+MYSQL TO HBase
+================
+
+sqoop import --connect jdbc:mysql://dbserver.edu.cloudlab.com/labuser_database --table edureka_918210_retailcart_sales_transaction_events --hbase-table 'edureka_918210_retailcart_sales_transaction_events' --column-family cf2 --username edu_labuser   --hbase-create-table --columns sales_id,store_id,item_id,scan_type,geo_region_cd,currency_code,scan_id,sold_unit_quantity,sales_timestamp,scan_dept_nbr,row_insertion_dttm --hbase-row-key sales_id -m 1 --password edureka
+
+sqoop import --connect jdbc:mysql://dbserver.edu.cloudlab.com/labuser_database --table edureka_918210_retailcart_price_change_events --hbase-table 'edureka_918210_retailcart_price_change_events' --column-family cf2 --username edu_labuser   --hbase-create-table --columns event_id,item_id,store_id,price_chng_activation_ts,geo_region_cd,price_change_reason,prev_price_amt,curr_price_amt,row_insertion_dttm --hbase-row-key event_id -m 1 --password edureka
+
+SAVE TO DF and CREATE JOINS
+==================================
+val edureka_918210_retailcart_price_change_events_DF = spark.sql("select * from edureka_918210_DB_Industry_projects.edureka_918210_retailcart_price_change_events")
+val edureka_918210_retailcart_sales_transaction_events_DF = spark.sql("select * from edureka_918210_DB_Industry_projects.edureka_918210_retailcart_sales_transaction_events")
+
+val JoinDF = edureka_918210_retailcart_price_change_events_DF.join(edureka_918210_retailcart_sales_transaction_events_DF,"item_id").select("item_id","price_chng_activation_ts","sales_timestamp","curr_price_amt")
+
+
+scala> JoinDF.printSchema
+root
+ |-- item_id: integer (nullable = true)
+ |-- price_chng_activation_ts: string (nullable = true)
+ |-- sales_timestamp: string (nullable = true)
+ |-- curr_price_amt: double (nullable = true)
+
+val JoinDF2 = JoinDF.selectExpr("item_id","cast(price_chng_activation_ts as timestamp) start_time","cast(sales_timestamp as timestamp) end_time","curr_price_amt")
+
+scala> JoinDF2.show(5)
++--------+--------------------+--------------------+--------------+             
+| item_id|          start_time|            end_time|curr_price_amt|
++--------+--------------------+--------------------+--------------+
+|61168437|2021-01-12 23:39:...|2021-01-12 23:41:...|         98.69|
+|61168437|2021-01-12 23:39:...|2021-01-12 23:41:...|         98.69|
+|61168437|2021-01-12 23:39:...|2021-01-12 23:41:...|         98.69|
+|61168437|2021-01-12 23:39:...|2021-01-12 23:41:...|         98.69|
+|61168437|2021-01-12 23:39:...|2021-01-12 23:41:...|         98.69|
++--------+--------------------+--------------------+--------------+
+only showing top 5 rows
+
+val JoinDF3 = JoinDF2.join(edureka_918210_retailcart_sales_transaction_events_DF,"item_id").select("item_id","store_id","start_time","end_time","curr_price_amt")
+
+scala> JoinDF3.printSchema
+root
+ |-- item_id: integer (nullable = true)
+ |-- store_id: integer (nullable = true)
+ |-- start_time: timestamp (nullable = true)
+ |-- end_time: timestamp (nullable = true)
+ |-- curr_price_amt: double (nullable = true)
+
+
+scala> JoinDF3.repartition(1).write.format("csv").save("/user/edureka_918210/project_retailcart/sales_result")
+                                                                                
+scala> 
+scala> 
+
+############################################################################################################################
+
+[edureka_918210@ip-20-0-41-164 project_retailcart]$ hadoop fs -ls /user/edureka_918210/project_retailcart/sales_result
+Found 2 items
+-rw-r--r--   3 edureka_918210 hadoop          0 2021-01-13 16:24 /user/edureka_918210/project_retailcart/sales_result/_SUCCESS
+-rw-r--r--   3 edureka_918210 hadoop    1816227 2021-01-13 16:24 /user/edureka_918210/project_retailcart/sales_result/part-00000-6b1e7c7b-d602-4671-aa76-4d2daf53b5
+b8.csv
+[edureka_918210@ip-20-0-41-164 project_retailcart]$ 
+[edureka_918210@ip-20-0-41-164 project_retailcart]$ 
+
+###############################################################################################################################
+
+
+OBJECTIVES :
+===================
+
+Total sales in a day/week/quarter (both in terms of sales revenue and units sold)
+• Top 5 most selling item categories in a day (both in terms of amount and quantity)
+• Top 5 most profitable items in a day/week/quarter
+• Top 5 most profitable stores in a day/week/month/quarter
+• Total profit or loss in U.S. dollars every day in percentage
+
+Top 5 most selling item categories in a day (both in terms of amount and quantity)
+======================================================================================
+scala> JoinDF3.printSchema
+root
+ |-- item_id: integer (nullable = true)
+ |-- store_id: integer (nullable = true)
+ |-- start_time: timestamp (nullable = true)
+ |-- end_time: timestamp (nullable = true)
+ |-- curr_price_amt: double (nullable = true)
+
+val results = JoinDF3.withColumn("date", to_date($"start_time"))
+
+scala> results.printSchema
+root
+ |-- item_id: integer (nullable = true)
+ |-- store_id: integer (nullable = true)
+ |-- start_time: timestamp (nullable = true)
+ |-- end_time: timestamp (nullable = true)
+ |-- curr_price_amt: double (nullable = true)
+ |-- date: date (nullable = true)
+scala> 
+
+scala> results.groupBy("item_id","date").count().orderBy("count").show(false)
++--------+----------+-----+
+|item_id |date      |count|
++--------+----------+-----+
+|61182751|2021-01-12|1    |
+|61170975|2021-01-12|1    |
+|61181052|2021-01-12|4    |
+|61181042|2021-01-12|4    |
+|61182606|2021-01-12|8    |
+|61188366|2021-01-12|32   |
+|61182255|2021-01-12|48   |
+|61168437|2021-01-12|48   |
+|61182603|2021-01-12|50   |
+|61182258|2021-01-12|72   |
+|61182866|2021-01-12|500  |
+|61189264|2021-01-12|1800 |
+|61188772|2021-01-12|6250 |
+|61182903|2021-01-12|7290 |
+|61189259|2021-01-12|10092|
++--------+----------+-----+
+scala> 
+
+• Top 5 most profitable items in a day/week/quarter
+=========================================================
+val results2 = results.groupBy("item_id","date","curr_price_amt").count().orderBy("count")
+scala> results2.printSchema
+root
+ |-- item_id: integer (nullable = true)
+ |-- date: date (nullable = true)
+ |-- curr_price_amt: double (nullable = true)
+ |-- count: long (nullable = false)
+scala> 
+
+val results3 = results2.selectExpr("item_id","date","curr_price_amt","cast(count as double) count")
+
+val results4 = results3.selectExpr("item_id","date","curr_price_amt","count","curr_price_amt * count")
+
+scala> results4.show(10)
++--------+----------+--------------+-----+------------------------+
+| item_id|      date|curr_price_amt|count|(curr_price_amt * count)|
++--------+----------+--------------+-----+------------------------+
+|61182751|2021-01-12|         86.36|  1.0|                   86.36|
+|61170975|2021-01-12|         65.04|  1.0|                   65.04|
+|61181052|2021-01-12|         86.31|  4.0|                  345.24|
+|61181042|2021-01-12|         95.58|  4.0|                  382.32|
+|61182606|2021-01-12|         12.67|  8.0|                  101.36|
+|61188366|2021-01-12|         77.53| 32.0|                 2480.96|
+|61168437|2021-01-12|         98.69| 48.0|                 4737.12|
+|61182255|2021-01-12|         57.78| 48.0|                 2773.44|
+|61182603|2021-01-12|         30.25| 50.0|                  1512.5|
+|61182258|2021-01-12|         77.53| 72.0|                 5582.16|
++--------+----------+--------------+-----+------------------------+
+only showing top 10 rows
+
+Top 5 most profitable stores in a day/week/month/quarter
+===========================================================
+JoinDF3.printSchema
+results4.printSchema
+
+val JoinDF4 = JoinDF3.selectExpr("item_id","store_id")
+
+val Final = results4.join(JoinDF4,"item_id").select("item_id","date","curr_price_amt","count","(curr_price_amt * count)","store_id")
+
+scala> Final.show(10)
++--------+----------+--------------+-----+------------------------+--------+    
+| item_id|      date|curr_price_amt|count|(curr_price_amt * count)|store_id|
++--------+----------+--------------+-----+------------------------+--------+
+|61182903|2021-01-12|         84.99|729.0|                61957.71|    5907|
+|61182903|2021-01-12|         84.99|729.0|                61957.71|    5907|
+|61182903|2021-01-12|         84.99|729.0|                61957.71|    5907|
+|61182903|2021-01-12|         84.99|729.0|                61957.71|    5907|
+|61182903|2021-01-12|         84.99|729.0|                61957.71|    5907|
+|61182903|2021-01-12|         84.99|729.0|                61957.71|    5370|
+|61182903|2021-01-12|         84.99|729.0|                61957.71|    5370|
+|61182903|2021-01-12|         84.99|729.0|                61957.71|    5370|
+|61182903|2021-01-12|         84.99|729.0|                61957.71|    5370|
+|61182903|2021-01-12|         84.99|729.0|                61957.71|    5370|
++--------+----------+--------------+-----+------------------------+--------+
+only showing top 10 rows
+
+Final.createOrReplaceTempView("FinalResults")
+
+spark.sql("Describe FinalResults").show(false)
++------------------------+---------+-------+
+|col_name                |data_type|comment|
++------------------------+---------+-------+
+|item_id                 |int      |null   |
+|date                    |date     |null   |
+|curr_price_amt          |double   |null   |
+|count                   |double   |null   |
+|(curr_price_amt * count)|double   |null   |
+|store_id                |int      |null   |
++------------------------+---------+-------+
+
+scala> spark.sql("SELECT item_id,count(item_id),sum((curr_price_amt * count)) as Total FROM FinalResults GROUP BY item_id ORDER BY TOTAL desc").show(false)
+
++--------+--------------+-------------------+                                   
+|item_id |count(item_id)|Total              |
++--------+--------------+-------------------+
+|61182903|29160         |3.238601454001014E9|
+|61188772|6250          |1.2796875E9        |
+|61189264|7200          |9.284625E7         |
+|61182866|500           |2.29175E7          |
+|61189259|60552         |1.298567916000161E7|
+|61182258|72            |401915.5199999995  |
+|61168437|48            |227381.75999999986 |
+|61182255|48            |133125.12000000005 |
+|61188366|32            |79390.72000000002  |
+|61182603|50            |75625.0            |
+|61181042|4             |1529.28            |
+|61181052|4             |1380.96            |
+|61182606|8             |810.88             |
+|61182751|1             |86.36              |
+|61170975|1             |65.04              |
++--------+--------------+-------------------+
+val df1 = spark.sql("SELECT item_id,count(item_id),sum((curr_price_amt * count)) as Total FROM FinalResults GROUP BY item_id ORDER BY TOTAL desc")
+scala> df1.printSchema
+root
+ |-- item_id: integer (nullable = true)
+ |-- count(item_id): long (nullable = false)
+ |-- Total: double (nullable = true)
+
+val df2 = Final.selectExpr("item_id","store_id")
+scala> df2.printSchema
+root
+ |-- item_id: integer (nullable = true)
+ |-- store_id: integer (nullable = true)
+
+val Final_Results = df2.join(df1,"item_id").distinct()
+
+Top 5 most profitable stores in a day/week/month/quarter
+================================================================
+
+scala> Final_Results.show(false)
++--------+--------+--------------+-------------------+                          
+|item_id |store_id|count(item_id)|Total              |
++--------+--------+--------------+-------------------+
+|61182903|5907    |29160         |3.238601454001018E9|
+|61182903|5370    |29160         |3.238601454001018E9|
+|61182903|4527    |29160         |3.238601454001018E9|
+|61182903|3824    |29160         |3.238601454001018E9|
+|61182903|3166    |29160         |3.238601454001018E9|
+|61182903|3008    |29160         |3.238601454001018E9|
+|61182903|2223    |29160         |3.238601454001018E9|
+|61181042|1131    |4             |1529.28            |
+|61182255|1989    |48            |133125.12000000005 |
+|61182255|1378    |48            |133125.12000000005 |
+|61182255|1233    |48            |133125.12000000005 |
+|61182606|1286    |8             |810.88             |
+|61182606|614     |8             |810.88             |
+|61189264|1987    |7200          |9.284625E7         |
+|61189264|1422    |7200          |9.284625E7         |
+|61189264|1377    |7200          |9.284625E7         |
+|61189264|1199    |7200          |9.284625E7         |
+|61189264|422     |7200          |9.284625E7         |
+|61188772|3397    |6250          |1.2796875E9        |
+|61188772|3352    |6250          |1.2796875E9        |
++--------+--------+--------------+-------------------+
+only showing top 20 rows
+scala> 
+
+• Total profit or loss in U.S. dollars every day in percentage
+===================================================================
+
+scala> results4.printSchema
+root
+ |-- item_id: integer (nullable = true)
+ |-- date: date (nullable = true)
+ |-- curr_price_amt: double (nullable = true)
+ |-- count: double (nullable = false)
+ |-- (curr_price_amt * count): double (nullable = true)
+ 
+ val results5 = results4.selectExpr("item_id","date")
+
+scala> Final_Results.printSchema
+root
+ |-- item_id: integer (nullable = true)
+ |-- store_id: integer (nullable = true)
+ |-- count(item_id): long (nullable = false)
+ |-- Total: double (nullable = true)
+ 
+ 
+val Final_Results2 = Final_Results.join(results5,"item_id").distinct()
+
+Final_Results2.createOrReplaceTempView("totalprofits")
+
+val TotalAmountInaDay = spark.sql("select date,sum(Total) from totalprofits group by date")
+
+
+scala> TotalAmountInaDay.show(false)
++----------+---------------------+                                              
+|date      |sum(Total)           |
++----------+---------------------+
+|2021-01-12|3.6139003748647095E10|
++----------+---------------------+
+
+=============================================================================================================================================
+

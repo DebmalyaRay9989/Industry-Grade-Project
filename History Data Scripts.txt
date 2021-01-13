@@ -1,0 +1,164 @@
+
+
+HISTORY DATA
+======================
+======================
+4.2 History data for sales transactions and price change events:
+=====================================================================
+
+Store_Item_Price_Change
+============================
+
+-- df.read.orc("/tmp/orc/data.orc")
+
+val spark = SparkSession.builder().appName("Industry_Grade_Project-spark").master("local[*]").enableHiveSupport().getOrCreate();
+
+val store_item_price_change = spark.read.orc("/bigdatapgp/common_folder/project_retailcart/history_data/store_item_price_change")
+
+scala> store_item_price_change.printSchema
+root
+ |-- _col0: integer (nullable = true)
+ |-- _col1: integer (nullable = true)
+ |-- _col2: timestamp (nullable = true)
+ |-- _col3: string (nullable = true)
+ |-- _col4: string (nullable = true)
+ |-- _col5: date (nullable = true)
+ |-- _col6: decimal(15,2) (nullable = true)
+ |-- _col7: decimal(15,2) (nullable = true)
+
+val store_item_price_change2 = store_item_price_change.toDF("item_id","store_id","price_chng_activation_ts","geo_region_cd","price_change_reason","business_date","prev_price_amt","curr_price_amt")
+
+scala> store_item_price_change2.printSchema
+root
+ |-- item_id: integer (nullable = true)
+ |-- store_id: integer (nullable = true)
+ |-- price_chng_activation_ts: timestamp (nullable = true)
+ |-- geo_region_cd: string (nullable = true)
+ |-- price_change_reason: string (nullable = true)
+ |-- business_date: date (nullable = true)
+ |-- prev_price_amt: decimal(15,2) (nullable = true)
+ |-- curr_price_amt: decimal(15,2) (nullable = true)
+
+
+SPARK TO Hive
+=================
+
+store_item_price_change2.write.mode("overwrite").saveAsTable("edureka_918210_DB_Industry_projects.store_item_price_change")
+
+********************************************************************************************************************************************
+********************************************************************************************************************************************
+scala> spark.sql("select * from edureka_918210_DB_Industry_projects.store_item_price_change limit 10").show()
++-------+--------+------------------------+-------------+-------------------+-------------+--------------+--------------+
+|item_id|store_id|price_chng_activation_ts|geo_region_cd|price_change_reason|business_date|prev_price_amt|curr_price_amt|
++-------+--------+------------------------+-------------+-------------------+-------------+--------------+--------------+
+|  26096|    2569|    2020-02-01 00:33:...|           US|        HOPCPending|   2020-02-01|         38.88|         46.51|
+|  26096|    2569|    2020-02-01 08:58:...|           US|        HOPCPending|   2020-02-01|         46.51|         38.46|
+|  26096|    2569|    2020-02-02 00:33:...|           US|        HOPCPending|   2020-02-02|         24.39|         38.46|
+|  26096|    2569|    2020-02-03 00:28:...|           US|        HOPCPending|   2020-02-03|         37.99|         28.57|
+|  26096|    2569|    2020-02-03 08:52:...|           US|        HOPCPending|   2020-02-03|         28.57|         38.46|
+|  26096|    2569|    2020-02-04 00:28:...|           US|        HOPCPending|   2020-02-04|         23.32|         46.99|
+|  26096|    2569|    2020-02-04 08:51:...|           US|        HOPCPending|   2020-02-04|         46.99|         38.46|
+|  26096|    2569|    2020-02-05 00:28:...|           US|        HOPCPending|   2020-02-05|         38.15|         45.47|
+|  26096|    2569|    2020-02-05 08:52:...|           US|        HOPCPending|   2020-02-05|         45.47|         38.46|
+|  26096|    2569|    2020-02-06 00:28:...|           US|        HOPCPending|   2020-02-06|         46.46|         20.83|
++-------+--------+------------------------+-------------+-------------------+-------------+--------------+--------------+
+scala> 
+
+scala> spark.sql("select count(*) from edureka_918210_DB_Industry_projects.store_item_price_change").show()
++---------+
+| count(1)|
++---------+
+|144754674|
++---------+
+
+
+Store_item_sales_data
+============================
+
+val spark = SparkSession.builder().appName("Industry_Grade_Project-spark").master("local[*]").enableHiveSupport().getOrCreate();
+
+val store_item_sales_data = spark.read.orc("/bigdatapgp/common_folder/project_retailcart/history_data/store_item_sales_data")
+
+scala> store_item_sales_data.printSchema
+root
+ |-- _col0: integer (nullable = true)
+ |-- _col1: date (nullable = true)
+ |-- _col2: integer (nullable = true)
+ |-- _col3: integer (nullable = true)
+ |-- _col4: byte (nullable = true)
+ |-- _col5: string (nullable = true)
+ |-- _col6: string (nullable = true)
+ |-- _col7: integer (nullable = true)
+ |-- _col8: decimal(9,2) (nullable = true)
+ |-- _col9: date (nullable = true)
+ |-- _col10: string (nullable = true)
+ |-- _col11: short (nullable = true)
+
+val store_item_sales_data2 = store_item_sales_data.toDF("sales_id","Sales_date","store_id","item_id","scan_type","geo_region_cd","currency_code","scan_id","sold_unit_quantity","scan_date","scan_time","scan_dept_nbr")
+
+
+scala> store_item_sales_data2.printSchema
+root
+ |-- sales_id: integer (nullable = true)
+ |-- Sales_date: date (nullable = true)
+ |-- store_id: integer (nullable = true)
+ |-- item_id: integer (nullable = true)
+ |-- scan_type: byte (nullable = true)
+ |-- geo_region_cd: string (nullable = true)
+ |-- currency_code: string (nullable = true)
+ |-- scan_id: integer (nullable = true)
+ |-- sold_unit_quantity: decimal(9,2) (nullable = true)
+ |-- scan_date: date (nullable = true)
+ |-- scan_time: string (nullable = true)
+ |-- scan_dept_nbr: short (nullable = true)
+ 
+ ==============================================================================================================================
+
+SPARK TO Hive
+=================
+
+store_item_sales_data2.write.mode("overwrite").saveAsTable("edureka_918210_DB_Industry_projects.store_item_sales_data")
+
+spark.sql("select * from edureka_918210_DB_Industry_projects.store_item_sales_data limit 10").show()
+
+scala> spark.sql("select * from edureka_918210_DB_Industry_projects.store_item_sales_data limit 10").show()
++--------+----------+--------+---------+---------+-------------+-------------+---------+------------------+----------+---------+-------------+
+|sales_id|Sales_date|store_id|  item_id|scan_type|geo_region_cd|currency_code|  scan_id|sold_unit_quantity| scan_date|scan_time|scan_dept_nbr|
++--------+----------+--------+---------+---------+-------------+-------------+---------+------------------+----------+---------+-------------+
+|    1001|2020-02-06|    3655| 90216017|        0|           US|          AED| 89074521|              1.00|2020-02-06| 00:08:16|           92|
+|    1002|2020-02-06|    1150| 98415245|        0|           US|          SGD| 94109944|              1.00|2020-02-06| 00:24:23|           79|
+|    1003|2020-02-06|    3655| 91599641|        0|           US|          AED|104343546|              1.00|2020-02-06| 05:52:37|           95|
+|    1004|2020-02-06|    1150|163955345|        0|           US|          SGD| 94263098|              1.00|2020-02-06| 23:58:27|           79|
+|    1005|2020-02-06|    3655|106256357|        0|           US|          AED| 89872996|              1.00|2020-02-06| 04:56:24|           90|
+|    1006|2020-02-06|    1150|163998017|        0|           US|          SGD| 94263094|              1.00|2020-02-06| 08:16:43|           79|
+|    1007|2020-02-06|    3655|119836673|        0|           US|          AED|177993709|              1.00|2020-02-06| 22:11:05|           92|
+|    1008|2020-02-06|    1161|100372044|        0|           US|          SGD| 89733586|              1.00|2020-02-06| 21:36:52|            2|
+|    1009|2020-02-06|    3655|175643357|        0|           US|          AED|193509111|              1.00|2020-02-06| 08:40:47|           92|
+|    1010|2020-02-06|    1172| 93985723|        0|           US|          SGD|196610296|              1.00|2020-02-06| 19:29:32|           27|
++--------+----------+--------+---------+---------+-------------+-------------+---------+------------------+----------+---------+-------------+
+
+scala> spark.sql("select count(*) from edureka_918210_DB_Industry_projects.store_item_sales_data").show()
++--------+
+|count(1)|
++--------+
+|13840801|
++--------+
+
+********************************************************************************************************************************************
+
+
+scala> spark.sql("Show tables in edureka_918210_DB_Industry_projects").show(false)
++-----------------------------------+--------------------------------------------------+-----------+
+|database                           |tableName                                         |isTemporary|
++-----------------------------------+--------------------------------------------------+-----------+
+|edureka_918210_db_industry_projects|edureka_918210_retailcart_price_change_events     |false      |
+|edureka_918210_db_industry_projects|edureka_918210_retailcart_sales_transaction_events|false      |
+|edureka_918210_db_industry_projects|retailcart_calendar_details                       |false      |
+|edureka_918210_db_industry_projects|retailcart_currency_details                       |false      |
+|edureka_918210_db_industry_projects|retailcart_department_details                     |false      |
+|edureka_918210_db_industry_projects|retailcart_item_details                           |false      |
+|edureka_918210_db_industry_projects|retailcart_store_details                          |false      |
+|edureka_918210_db_industry_projects|store_item_price_change                           |false      |
+|edureka_918210_db_industry_projects|store_item_sales_data                             |false      |
++-----------------------------------+--------------------------------------------------+-----------+
+scala> 

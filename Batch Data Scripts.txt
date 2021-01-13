@@ -1,0 +1,299 @@
+Total sales in a day/week/quarter (both in terms of sales revenue and units sold)
+• Top 5 most selling item categories in a day (both in terms of amount and quantity)
+• Top 5 most profitable items in a day/week/quarter
+• Top 5 most profitable stores in a day/week/month/quarter
+• Total profit or loss in U.S. dollars every day in percentage
+
+
+*********************************************************************************************************************************************
+
+Sales transaction data does not have sales price information. It just has itemID, store_id, date and
+units sold
+• To fetch the sales price, we need to join it with the price change events table
+
+• One price change creates two ranges. scandate + scantime in a sales transaction can belong to any
+of these ranges to get the sales price
+
+• In the below example, the sales price for the sales transaction as per price change event will be
+16.17
+
+********************************************************************************************************************************************
+
+Forecasting Trends and Demand
+==============================
+
+[edureka_918210@ip-20-0-41-62 ~]$ hadoop fs -ls /bigdatapgp/common_folder/project_retailcart
+Found 4 items
+drwxr-xr-x   - evaluationuser01 supergroup          0 2020-07-26 16:12 /bigdatapgp/common_folder/project_retailcart/batchdata
+drwxr-xr-x   - evaluationuser01 supergroup          0 2020-07-26 16:23 /bigdatapgp/common_folder/project_retailcart/connector_jars
+drwxr-xr-x   - evaluationuser01 supergroup          0 2020-07-26 16:19 /bigdatapgp/common_folder/project_retailcart/history_data
+drwxr-xr-x   - evaluationuser01 supergroup          0 2020-07-27 19:14 /bigdatapgp/common_folder/project_retailcart/realtimedata
+[edureka_918210@ip-20-0-41-62 ~]$ 
+
+###########################################################################################################################################
+[edureka_918210@ip-20-0-41-62 project_retailcart]$ hadoop fs -ls /bigdatapgp/common_folder/project_retailcart/batchdata
+Found 5 items
+-rw-r--r--   3 evaluationuser01 supergroup    1822863 2020-07-26 16:12 /bigdatapgp/common_folder/project_retailcart/batchdata/retailcart_calendar_details.txt
+-rw-r--r--   3 evaluationuser01 supergroup       1356 2020-07-26 16:12 /bigdatapgp/common_folder/project_retailcart/batchdata/retailcart_currency_details.txt
+-rw-r--r--   3 evaluationuser01 supergroup     271441 2020-07-26 16:12 /bigdatapgp/common_folder/project_retailcart/batchdata/retailcart_department_details.txt
+-rw-r--r--   3 evaluationuser01 supergroup  107275790 2020-07-26 16:12 /bigdatapgp/common_folder/project_retailcart/batchdata/retailcart_item_details.txt
+-rw-r--r--   3 evaluationuser01 supergroup     831617 2020-07-26 16:12 /bigdatapgp/common_folder/project_retailcart/batchdata/retailcart_store_details.txt
+[edureka_918210@ip-20-0-41-62 project_retailcart]$ 
+###########################################################################################################################################
+[edureka_918210@ip-20-0-41-62 project_retailcart]$ hadoop fs -ls /bigdatapgp/common_folder/project_retailcart/connector_jars
+Found 1 items
+-rw-r--r--   3 evaluationuser01 supergroup    1006959 2020-07-26 16:23 /bigdatapgp/common_folder/project_retailcart/connector_jars/mysql-connector-java-5.1.48-bin.
+jar
+[edureka_918210@ip-20-0-41-62 project_retailcart]$
+###########################################################################################################################################
+[edureka_918210@ip-20-0-41-62 project_retailcart]$ hadoop fs  -ls /bigdatapgp/common_folder/project_retailcart/history_data
+Found 2 items
+drwxr-xr-x   - evaluationuser01 supergroup          0 2020-07-26 16:18 /bigdatapgp/common_folder/project_retailcart/history_data/store_item_price_change
+drwxr-xr-x   - evaluationuser01 supergroup          0 2020-07-26 16:20 /bigdatapgp/common_folder/project_retailcart/history_data/store_item_sales_data
+[edureka_918210@ip-20-0-41-62 project_retailcart]$ 
+###########################################################################################################################################
+[edureka_918210@ip-20-0-41-62 project_retailcart]$ hadoop fs -ls /bigdatapgp/common_folder/project_retailcart/realtimedata
+Found 2 items
+-rw-r--r--   3 evaluationuser01 supergroup      41546 2020-07-27 09:56 /bigdatapgp/common_folder/project_retailcart/realtimedata/price_change_event.txt
+-rw-r--r--   3 evaluationuser01 supergroup       5029 2020-07-27 16:42 /bigdatapgp/common_folder/project_retailcart/realtimedata/real_time_simulator.py
+[edureka_918210@ip-20-0-41-62 project_retailcart]$ 
+###########################################################################################################################################
+.option("delimter", "\t")
+
+/bigdatapgp/common_folder/project_retailcart/batchdata/retailcart_calendar_details.txt
+
+"calendar_date","date_desc","week_day_nbr","week_number","week_name","year_week_number","month_number","month_name","quarter_number","quarter_name","half_year_number","half_year_name","geo_region_cd"
+
+###########################################################################################################################################
+[edureka_918210@ip-20-0-41-62 batchdata]$ hadoop fs -ls /user/edureka_918210/project_retailcart/batchdata
+Found 1 items
+-rw-r--r--   3 edureka_918210 hadoop    1822689 2021-01-10 15:56 /user/edureka_918210/project_retailcart/batchdata/retailcart_calendar_details.txt
+[edureka_918210@ip-20-0-41-62 batchdata]$ 
+
+2011-02-20      Sunday, February 20, 2011       2       4       Week 04 201104  1       February        1       Q1      1       1st Half        US
+
+###########################################################################################################################################
+
+import org.apache.spark.ml.classification.LogisticRegression
+import org.apache.spark.ml.evaluation.BinaryClassificationEvaluator
+import org.apache.spark.ml.feature.{StringIndexer, VectorAssembler}
+import org.apache.spark.ml.linalg.DenseVector
+import org.apache.spark.mllib.evaluation.BinaryClassificationMetrics
+import org.apache.spark.sql.SparkSession
+import org.apache.log4j.Logger
+import org.apache.log4j.Level
+import org.apache.spark.ml.feature.{HashingTF, IDF, Tokenizer}
+import org.apache.spark.ml.feature.QuantileDiscretizer
+import org.apache.spark.sql.types._
+import org.apache.spark.ml.classification.LogisticRegression
+import org.apache.spark.ml.evaluation.BinaryClassificationEvaluator
+import org.apache.spark.ml.feature.{StringIndexer, VectorAssembler}
+import org.apache.spark.ml.feature.{HashingTF, IDF, Tokenizer} 
+import org.apache.spark.ml.linalg.DenseVector
+import org.apache.spark.mllib.evaluation.BinaryClassificationMetrics
+import org.apache.spark.sql.SparkSession
+import org.apache.log4j.Logger
+import org.apache.log4j.Level
+import org.apache.spark.ml.feature.{HashingTF, IDF, Tokenizer}
+import org.apache.spark.ml.feature.QuantileDiscretizer
+import org.apache.spark.sql.types._
+import org.apache.spark.ml.feature.MinMaxScaler 
+import org.apache.spark.ml.linalg.Vectors 
+import org.apache.spark.ml.classification.RandomForestClassifier
+import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator
+import org.apache.spark.ml.feature.StringIndexer
+import org.apache.spark.ml.feature.VectorAssembler
+import org.apache.spark.ml.classification.RandomForestClassifier
+import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator
+import org.apache.spark.ml.feature.StringIndexer
+import org.apache.spark.ml.feature.VectorAssembler
+import org.apache.spark.sql.functions._ 
+import org.apache.spark.ml.feature.{OneHotEncoder, StringIndexer}
+import org.apache.spark.ml.Pipeline
+import org.apache.spark.ml.classification.{RandomForestClassificationModel, RandomForestClassifier}
+import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator
+import org.apache.spark.ml.feature.{IndexToString, StringIndexer, VectorIndexer}
+
+import org.apache.spark.ml.evaluation.RegressionEvaluator
+import org.apache.spark.ml.regression.LinearRegression
+import org.apache.spark.ml.tuning.{ParamGridBuilder,TrainValidationSplit}
+import org.apache.log4j._
+import org.apache.spark.ml.feature.VectorAssembler
+import org.apache.spark.mllib.linalg.Vectors
+
+import org.apache.spark.ml.Pipeline
+import org.apache.spark.ml.classification.LogisticRegression
+import org.apache.spark.ml.evaluation.BinaryClassificationEvaluator
+import org.apache.spark.ml.feature.{HashingTF, Tokenizer}
+import org.apache.spark.ml.linalg.Vector
+import org.apache.spark.ml.tuning.{CrossValidator, ParamGridBuilder}
+import org.apache.spark.sql.Row
+// $example off$
+import org.apache.spark.sql.SparkSession
+
+import org.apache.spark.sql.{Row, SparkSession}
+import org.apache.spark.sql.types._
+import org.apache.spark.sql.functions._
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.types.{StructType, StructField, StringType};
+
+retailcart_calendar_details
+==============================
+
+"calendar_date date_desc week_day_nbr week_number week_name year_week_number month_number month_name quarter_number quarter_name half_year_number half_year_name geo_region_cd"
+spark.read.textFile("/user/edureka_918210/project_retailcart/batchdata/retailcart_calendar_details.txt").createOrReplaceTempView("retailcart_calendar_details");
+
+2011-02-20      Sunday, February 20, 2011       2       4       Week 04 201104  1       February        1       Q1      1       1st Half        US
+
+val retailcart_calendar = 
+spark.sql(""" Select 
+split(value,'\t')[0] as calendar_date,
+split(value,'\t')[1] as date_desc,
+split(value,'\t')[2] as week_day_nbr,
+split(value,'\t')[3] as week_number,
+split(value,'\t')[4] as week_name,
+split(value,'\t')[5] as year_week_number,
+split(value,'\t')[6] as month_number,
+split(value,'\t')[7] as month_name,
+split(value,'\t')[8] as quarter_number,
+split(value,'\t')[9] as quarter_name,
+split(value,'\t')[10] as half_year_number,
+split(value,'\t')[11] as half_year_name,
+split(value,'\t')[12] as geo_region_cd
+from retailcart_calendar_details """)
+
+
+val retailcart_calendar2 = retailcart_calendar.selectExpr("calendar_date", "date_desc", "cast(week_day_nbr as integer) week_day_nbr", "week_number", "week_name", "cast(year_week_number as integer) year_week_number","month_number","month_name","quarter_number","quarter_name","half_year_number","half_year_name","geo_region_cd")
+
+retailcart_department_details
+==============================
+
+department_number   department_category_number      department_sub_catg_number      department_description  department_category_description   department_sub_catg_desc      geo_region_cd
+
+spark.read.textFile("/user/edureka_918210/project_retailcart/batchdata/retailcart_department_details.txt").createOrReplaceTempView("retailcart_department_details");
+
+
+val retailcart_department = 
+spark.sql(""" Select 
+split(value,'\t')[0] as department_number,
+split(value,'\t')[1] as department_category_number,
+split(value,'\t')[2] as department_sub_catg_number,
+split(value,'\t')[3] as department_description,
+split(value,'\t')[4] as department_category_description,
+split(value,'\t')[5] as department_sub_catg_desc,
+split(value,'\t')[6] as geo_region_cd
+from retailcart_department_details """)
+
+val retailcart_department2 = retailcart_department.selectExpr("cast(department_number as integer) department_number", "cast(department_category_number as integer) department_category_number", "cast(department_sub_catg_number as integer) department_sub_catg_number", "department_description", "department_category_description", "department_sub_catg_desc","geo_region_cd")
+
+
+retailcart_item_details
+=========================
+
+item_id geo_region_cd   item_description        unique_product_cd       unique_product_cd_desc  department_number       department_category_number      department_sub_catg_number      vendor_name     vendor_number   item_status_cd  item_status_desc        unit_cost
+
+spark.read.textFile("/user/edureka_918210/project_retailcart/batchdata/retailcart_item_details.txt").createOrReplaceTempView("retailcart_item_details");
+
+val retailcart_item = 
+spark.sql(""" Select 
+split(value,'\t')[0] as item_id,
+split(value,'\t')[1] as geo_region_cd,
+split(value,'\t')[2] as item_description,
+split(value,'\t')[3] as unique_product_cd,
+split(value,'\t')[4] as unique_product_cd_desc,
+split(value,'\t')[5] as department_number,
+split(value,'\t')[6] as department_category_number,
+split(value,'\t')[7] as department_sub_catg_number,
+split(value,'\t')[8] as vendor_name,
+split(value,'\t')[9] as vendor_number,
+split(value,'\t')[10] as item_status_cd,
+split(value,'\t')[11] as item_status_desc,
+split(value,'\t')[12] as unit_cost
+from retailcart_item_details """)
+
+182396492       US      PR SV SH COC    7940045968      SUAVE SHAM      dept-num:2      dept-catg-num:561       dept-sub-catg-num:1203  PUERTO RICO SUPPLIES GROUP 
+INC     77641   A       ACTIVE  41.68
+74277172        US      REV CS POWDER-880       30997630008     REV POWDER      dept-num:46     dept-catg-num:7112      dept-sub-catg-num:16006 REVLON INC      430
+306     A       ACTIVE  NULL
+
+val retailcart_item2 = retailcart_item.selectExpr("cast(item_id as integer) item_id", "geo_region_cd", "item_description", "unique_product_cd", "unique_product_cd_desc", "department_number","department_category_number","department_sub_catg_number","vendor_name","vendor_number","item_status_cd","item_status_desc","cast(unit_cost as double) unit_cost")
+
+
+retailcart_store_details
+=========================
+store_id        geo_region_cd   store_name      sub_division_name       sub_division_number     region_number   region_name     market_number   market_name     city_name       open_date       open_status_desc        postal_cd       state_prov_cd
+
+spark.read.textFile("/user/edureka_918210/project_retailcart/batchdata/retailcart_store_details.txt").createOrReplaceTempView("retailcart_store_details");
+
+val retailcart_store = 
+spark.sql(""" Select 
+split(value,'\t')[0] as store_id,
+split(value,'\t')[1] as geo_region_cd,
+split(value,'\t')[2] as store_name,
+split(value,'\t')[3] as sub_division_name,
+split(value,'\t')[4] as sub_division_number,
+split(value,'\t')[5] as region_number,
+split(value,'\t')[6] as region_name,
+split(value,'\t')[7] as market_number,
+split(value,'\t')[8] as market_name,
+split(value,'\t')[9] as city_name,
+split(value,'\t')[10] as open_date,
+split(value,'\t')[11] as open_status_desc,
+split(value,'\t')[12] as postal_cd,
+split(value,'\t')[13] as state_prov_cd
+from retailcart_store_details """)
+
+val retailcart_store2 = retailcart_store.selectExpr("cast(store_id as integer) store_id", "geo_region_cd", "store_name", "sub_division_name", "sub_division_number", "region_number","region_name","market_number","market_name","city_name","open_date","open_status_desc","postal_cd","state_prov_cd")
+
+
+retailcart_currency_details
+==============================
+currency_id     currency_code   currency_name   usd_exchange_rate
+
+spark.read.textFile("/user/edureka_918210/project_retailcart/batchdata/retailcart_currency_details.txt").createOrReplaceTempView("retailcart_currency_details");
+
+val retailcart_currency = 
+spark.sql(""" Select 
+split(value,'\t')[0] as currency_id,
+split(value,'\t')[1] as currency_code,
+split(value,'\t')[2] as currency_name,
+split(value,'\t')[3] as usd_exchange_rate
+from retailcart_currency_details """)
+
+val retailcart_currency2 = retailcart_currency.selectExpr("currency_id", "currency_code", "currency_name", "cast(usd_exchange_rate as double) usd_exchange_rate")
+
+
+
+TO SAVE THE SPARK DATAFRAME INTO MYSQL : the mysql connector jar file is downloaded and connected.
+=====================================================================================================
+
+spark2-shell --jars /mnt/home/edureka_918210/project_retailcart/connector_jars/mysql-connector-java-5.1.48-bin.jar
+
+retailcart_calendar2.write.format("jdbc").option("url","jdbc:mysql://dbserver.edu.cloudlab.com/labuser_database").option("dbtable","retailcart_calendar2").option("user","edu_labuser").option("password","edureka").option("driver","com.mysql.jdbc.Driver").mode("overwrite").save
+retailcart_department2.write.format("jdbc").option("url","jdbc:mysql://dbserver.edu.cloudlab.com/labuser_database").option("dbtable","retailcart_department2").option("user","edu_labuser").option("password","edureka").option("driver","com.mysql.jdbc.Driver").mode("overwrite").save
+retailcart_item2.write.format("jdbc").option("url","jdbc:mysql://dbserver.edu.cloudlab.com/labuser_database").option("dbtable","retailcart_item2").option("user","edu_labuser").option("password","edureka").option("driver","com.mysql.jdbc.Driver").mode("overwrite").save
+retailcart_store2.write.format("jdbc").option("url","jdbc:mysql://dbserver.edu.cloudlab.com/labuser_database").option("dbtable","retailcart_store2").option("user","edu_labuser").option("password","edureka").option("driver","com.mysql.jdbc.Driver").mode("overwrite").save
+retailcart_currency2.write.format("jdbc").option("url","jdbc:mysql://dbserver.edu.cloudlab.com/labuser_database").option("dbtable","retailcart_currency2").option("user","edu_labuser").option("password","edureka").option("driver","com.mysql.jdbc.Driver").mode("overwrite").save
+
+mysql -u edu_labuser -h dbserver.edu.cloudlab.com -p
+
+password - edureka
+
+CREATE TABLE retailcart_calendar_details SELECT * FROM retailcart_calendar2;
+CREATE TABLE retailcart_department_details SELECT * FROM retailcart_department2;
+CREATE TABLE retailcart_item_details SELECT * FROM retailcart_item2;
+CREATE TABLE retailcart_store_details SELECT * FROM retailcart_store2;
+CREATE TABLE retailcart_currency_details SELECT * FROM retailcart_currency2;
+
+
+*******************************************************************************************************************************************
+*******************************************************************************************************************************************
+MYSQL TO HIVE
+================
+sqoop import --connect jdbc:mysql://dbserver.edu.cloudlab.com/labuser_database  --table retailcart_calendar_details -m 2 --hive-import --username edu_labuser  --hive-database edureka_918210_DB_Industry_projects --split-by calendar_date --password edureka
+sqoop import --connect jdbc:mysql://dbserver.edu.cloudlab.com/labuser_database  --table retailcart_department_details -m 2 --hive-import --username edu_labuser  --hive-database edureka_918210_DB_Industry_projects --split-by department_number --password edureka
+sqoop import --connect jdbc:mysql://dbserver.edu.cloudlab.com/labuser_database  --table retailcart_item_details -m 2 --hive-import --username edu_labuser  --hive-database edureka_918210_DB_Industry_projects --split-by item_id --password edureka
+sqoop import --connect jdbc:mysql://dbserver.edu.cloudlab.com/labuser_database  --table retailcart_store_details -m 2 --hive-import --username edu_labuser  --hive-database edureka_918210_DB_Industry_projects --split-by store_id --password edureka
+sqoop import --connect jdbc:mysql://dbserver.edu.cloudlab.com/labuser_database  --table retailcart_currency_details -m 2 --hive-import --username edu_labuser  --hive-database edureka_918210_DB_Industry_projects --split-by currency_id --password edureka
+
+
