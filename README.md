@@ -1,22 +1,17 @@
-Business Challenge/Requirement
-===================================
 
-Customer retention and acquisition strategies are on top of every organization’s agenda. 
-To offer better customer service and boost loyalty, a company has to invest in a state-of-the-art CRM tool. 
-In pursuit of these goals, every organization implements CRM as a strategy that integrates the concepts of data mining and data warehousing. 
-The data collected through the CRM helps the leadership team make actionable decisions in real time. 
-It helps them build and retain long-term and profitable relationships with customers. FutureCart Inc. is a hypothetical leading retail company 
-with an omnipresence in India with more than 5000 retail stores and hypermarkets across and e-commerce in the country. The company has formed a dedicated team to handle after-sales services. The team is entrusted with the responsibility to address customer complaints and delight them - and eventually increase brand loyalty
+The Goal of the Project Below are some of the high-level goals of this project:
+======================================================================================
 
-Abstract
-=============================
 
-The company has multiple contact centers across India to provide support service to their customers
+ • Get an overall understanding of the retail domain 
+• Learn the fundamentals & standards of ETL and data warehousing 
+• Real-time and batch ingestion of data from multiple sources to Big Data storage like Hive/HBase/HDFS using Kafka and Spark
+ • Data cleansing/wrangling/transformation using Hive and Spark • Lambda architecture where data can be processed in both batch and real-time 
+• Reporting KPIs using dashboards
 
- • Customers can reach out to the care team over different communication channels depending on their preference and convenience: Calls, Chat, or Email. 
- • CCR (Customer Care Representative) registers the complaint by collecting all the necessary details - - which is called a case 
-• A case can have a status -- open or closed 
-• Each case can belong to a category and sub-category. This category and sub-category will determine case priority. Depending on the priority key, CCR has an SLA (in hours) to close the case within the SLA hours
- • Once a case is closed, the customer is sent a survey link to rate the overall experience of interacting with the contact center representative
- • The customer can take a survey or leave it unattended. The customer can rate the experience on a scale of 1-10 on various questions
- • Survey response is captured for that particular case
+
+Please find above the tables , generated in 3 different Process Workflows:
+================================================================================
+1)	Batch Data 
+2)	History Data
+3)	Real Time Data
